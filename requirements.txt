@@ -1,0 +1,12 @@
+fastapi            # لبناء API
+uvicorn            #   لتشغيل السيرفر
+sqlalchemy         #  للتعامل مع قاعدة البيانات
+alembic            #   لإدارة تعديلات الجداول
+psycopg2-binary    #  للاتصال مع PostgreSQL
+pydantic           #  للتحقق من البيانات
+pydantic-settings  #  لإدارة إعدادات .env
+python-jose        # لإنشاء JWT
+passlib[bcrypt]     #  لتشفير كلمات المرور
+bcrypt>=4.0.0,<5.0.0
+python-multipart   #  لرفع الصور والملفات
+email-validator    #   للتحقق من البريد الإلكتروني
