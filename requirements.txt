@@ -1,5 +1,4 @@
-# fastapi            # لبناء API
-fastapi[standard]
+fastapi            # لبناء API
 uvicorn            #   لتشغيل السيرفر
 sqlalchemy         #  للتعامل مع قاعدة البيانات
 alembic            #   لإدارة تعديلات الجداول
