@@ -82,7 +82,6 @@ def run_validation_checks() -> None:
         }
     )
     PatientCreate(
-        full_name="Patient One",
         first_name="Patient",
         father_name="Parent",
         mother_name="Mother",
@@ -157,7 +156,7 @@ def run_validation_checks() -> None:
     XrayImageUpdate()
     invalid_updates = [
         (DoctorUpdate, {"email": None}),
-        (PatientUpdate, {"national_id": None}),
+        (PatientUpdate, {"first_name": None}),
         (XrayImageUpdate, {"view_type": None}),
     ]
     for schema, payload in invalid_updates:
@@ -166,6 +165,9 @@ def run_validation_checks() -> None:
         except ValidationError:
             continue
         raise AssertionError(f"{schema.__name__} accepted an unsafe explicit null")
+
+    assert "full_name" not in PatientCreate.model_fields
+    assert "full_name" not in PatientUpdate.model_fields
 
 
 def main() -> None:

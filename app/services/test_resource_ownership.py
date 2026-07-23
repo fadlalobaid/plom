@@ -12,8 +12,10 @@ from app.db.base import Base
 from app.models import DiagnosisResult, Doctor, Patient, XrayImage
 from app.models.enums import Gender, XrayViewType
 from app.schemas.patient import (
+    PatientCreate,
     PatientMedicalRecordResponse,
     PatientResponse,
+    PatientUpdate,
     PatientXrayHistoryResponse,
 )
 from app.services.diagnosis_service import (
@@ -21,7 +23,12 @@ from app.services.diagnosis_service import (
     delete_diagnosis_result,
     get_diagnosis_result_by_id,
 )
-from app.services.patient_service import get_patient_by_id, list_patients
+from app.services.patient_service import (
+    create_patient,
+    get_patient_by_id,
+    list_patients,
+    update_patient,
+)
 from app.services.xray_service import get_xray_image_by_id, list_xray_images_by_patient
 
 
@@ -48,6 +55,10 @@ class ResourceOwnershipTests(unittest.TestCase):
 
         self.patient = Patient(
             full_name="Owned Patient",
+            first_name="Owned",
+            father_name="Parent",
+            mother_name="Mother",
+            last_name="Patient",
             date_of_birth=date(1990, 1, 1),
             gender=Gender.MALE,
             national_id="patient-1",
@@ -99,6 +110,33 @@ class ResourceOwnershipTests(unittest.TestCase):
         )
 
         self.assertEqual([patient.id for patient in matches], [self.patient.id])
+
+    def test_create_patient_generates_full_name(self) -> None:
+        patient = create_patient(
+            self.db,
+            PatientCreate(
+                first_name="Ahmed",
+                father_name="Mohammed",
+                mother_name="Fatima",
+                last_name="Almustafa",
+                date_of_birth=date(2000, 5, 10),
+                gender=Gender.MALE,
+                national_id="patient-2",
+            ),
+            created_by_doctor_id=self.owner.id,
+        )
+
+        self.assertEqual(patient.full_name, "Ahmed Mohammed Almustafa")
+
+    def test_update_name_part_recalculates_full_name(self) -> None:
+        patient = update_patient(
+            self.db,
+            self.patient.id,
+            PatientUpdate(first_name="Updated"),
+            self.owner.id,
+        )
+
+        self.assertEqual(patient.full_name, "Updated Parent Patient")
 
     def test_xray_access_is_scoped_to_patient_owner(self) -> None:
         self.assertIsNotNone(get_xray_image_by_id(self.db, self.xray.id, self.owner.id))

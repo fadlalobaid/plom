@@ -15,11 +15,10 @@ from app.schemas.xray_image import XrayImageResponse
 class PatientCreate(BaseModel):
     """Payload for registering a new patient."""
 
-    full_name: str = Field(min_length=1, max_length=255)
-    first_name: str | None = Field(default=None, min_length=1, max_length=255)
-    father_name: str | None = Field(default=None, min_length=1, max_length=255)
-    mother_name: str | None = Field(default=None, min_length=1, max_length=255)
-    last_name: str | None = Field(default=None, min_length=1, max_length=255)
+    first_name: str = Field(min_length=1, max_length=255)
+    father_name: str = Field(min_length=1, max_length=255)
+    mother_name: str = Field(min_length=1, max_length=255)
+    last_name: str = Field(min_length=1, max_length=255)
     date_of_birth: date
     gender: Gender
     phone_number: str | None = Field(default=None, max_length=50)
@@ -30,7 +29,6 @@ class PatientCreate(BaseModel):
 class PatientUpdate(BaseModel):
     """Payload for partially updating a patient record."""
 
-    full_name: str | None = Field(default=None, min_length=1, max_length=255)
     first_name: str | None = Field(default=None, min_length=1, max_length=255)
     father_name: str | None = Field(default=None, min_length=1, max_length=255)
     mother_name: str | None = Field(default=None, min_length=1, max_length=255)
@@ -44,7 +42,14 @@ class PatientUpdate(BaseModel):
     @model_validator(mode="after")
     def reject_null_for_required_fields(self) -> Self:
         """Reject explicit nulls for non-nullable patient columns."""
-        required_fields = {"full_name", "date_of_birth", "gender", "national_id"}
+        required_fields = {
+            "first_name",
+            "father_name",
+            "last_name",
+            "date_of_birth",
+            "gender",
+            "national_id",
+        }
         invalid_fields = [
             field
             for field in required_fields & self.model_fields_set
