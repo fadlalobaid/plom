@@ -49,6 +49,14 @@ class Settings(BaseSettings):
         default="/api/v1",
         description="URL prefix for version 1 API routes.",
     )
+    cors_origins: list[str] = Field(
+        default=[
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+        ],
+        min_length=1,
+        description="Browser origins allowed to make cross-origin API requests.",
+    )
     database_url: str = Field(
         default="postgresql://postgres:postgres@localhost:5432/pulmoscan",
         description="SQLAlchemy database connection URL.",
@@ -90,6 +98,14 @@ class Settings(BaseSettings):
     @classmethod
     def parse_upload_dir(cls, value: str | Path) -> Path:
         return Path(value)
+
+    @field_validator("cors_origins")
+    @classmethod
+    def validate_cors_origins(cls, value: list[str]) -> list[str]:
+        origins = [origin.rstrip("/") for origin in value]
+        if any(not origin or origin == "*" for origin in origins):
+            raise ValueError("CORS_ORIGINS must contain non-empty, explicit origins.")
+        return origins
 
     @model_validator(mode="after")
     def validate_production_settings(self) -> Self:

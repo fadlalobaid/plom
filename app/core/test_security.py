@@ -7,6 +7,8 @@ from app.core.security import (
     create_access_token,
     decode_access_token,
     get_password_hash,
+    validate_admin_seed_password,
+    validate_password_strength,
     verify_password,
 )
 
@@ -18,6 +20,30 @@ def test_password_hashing() -> None:
     assert hashed != password
     assert verify_password(password, hashed) is True
     assert verify_password("WrongPassword", hashed) is False
+
+
+def test_password_strength_policy() -> None:
+    assert validate_password_strength("SecurePass1") == "SecurePass1"
+
+    for weak_password in (
+        "short1",
+        "lettersOnly",
+        "12345678",
+        f"{'أ' * 40}A1",
+    ):
+        try:
+            validate_password_strength(weak_password)
+        except ValueError:
+            continue
+        raise AssertionError(f"Weak password was accepted: {weak_password}")
+
+
+def test_known_admin_seed_password_is_rejected() -> None:
+    try:
+        validate_admin_seed_password("admin0021")
+    except ValueError:
+        return
+    raise AssertionError("Known default admin password was accepted")
 
 
 def test_jwt_lifecycle() -> None:
@@ -47,6 +73,8 @@ def test_jwt_decode_invalid_token() -> None:
 
 def main() -> None:
     test_password_hashing()
+    test_password_strength_policy()
+    test_known_admin_seed_password_is_rejected()
     test_jwt_lifecycle()
     test_jwt_decode_invalid_token()
     print("Security checks passed.")

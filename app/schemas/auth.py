@@ -1,6 +1,16 @@
 """Authentication request and response schemas."""
 
-from pydantic import BaseModel, EmailStr, Field
+from typing import Annotated
+
+from pydantic import AfterValidator, BaseModel, EmailStr, Field
+
+from app.core.security import validate_password_strength
+
+StrongPassword = Annotated[
+    str,
+    Field(min_length=8, max_length=128),
+    AfterValidator(validate_password_strength),
+]
 
 
 class LoginRequest(BaseModel):
@@ -15,6 +25,20 @@ class TokenResponse(BaseModel):
 
     access_token: str
     token_type: str = "bearer"
+    must_change_password: bool
+
+
+class ChangePasswordRequest(BaseModel):
+    """Current and replacement credentials for self-service password change."""
+
+    current_password: str = Field(min_length=1, max_length=128)
+    new_password: StrongPassword
+
+
+class PasswordChangeResponse(BaseModel):
+    """Response returned after changing or resetting a password."""
+
+    message: str = "Password changed successfully"
 
 
 class LogoutResponse(BaseModel):

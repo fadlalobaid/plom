@@ -10,34 +10,33 @@ if str(BACKEND_ROOT) not in sys.path:
 
 from sqlalchemy import select
 
-from app.core.security import get_password_hash
+from app.core.config import get_settings
+from app.core.security import get_password_hash, validate_admin_seed_password
 from app.db.session import SessionLocal
 from app.models.doctor import Doctor
 from app.models.enums import DoctorRole, DoctorStatus
 
-ADMIN_EMAIL = "admin@sb3.com"
-ADMIN_PASSWORD = "admin0021"
-ADMIN_FULL_NAME = "System Administrator"
-
-
 def seed_admin() -> None:
     """Create the default Admin account only if it does not already exist."""
+    settings = get_settings()
+    admin_password = validate_admin_seed_password(settings.first_admin_password)
     db = SessionLocal()
 
     try:
         existing_admin = db.scalar(
-            select(Doctor).where(Doctor.email == ADMIN_EMAIL)
+            select(Doctor).where(Doctor.email == settings.first_admin_email)
         )
         if existing_admin is not None:
             print("Admin already exists")
             return
 
         admin = Doctor(
-            full_name=ADMIN_FULL_NAME,
-            email=ADMIN_EMAIL,
-            password_hash=get_password_hash(ADMIN_PASSWORD),
+            full_name=settings.first_admin_full_name,
+            email=settings.first_admin_email,
+            password_hash=get_password_hash(admin_password),
             role=DoctorRole.ADMIN,
             status=DoctorStatus.ACTIVE,
+            must_change_password=False,
         )
         db.add(admin)
         db.commit()

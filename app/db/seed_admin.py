@@ -3,7 +3,7 @@
 from sqlalchemy import select
 
 from app.core.config import get_settings
-from app.core.security import get_password_hash
+from app.core.security import get_password_hash, validate_admin_seed_password
 from app.db.session import SessionLocal
 from app.models.doctor import Doctor
 from app.models.enums import DoctorRole, DoctorStatus
@@ -12,6 +12,7 @@ from app.models.enums import DoctorRole, DoctorStatus
 def seed_admin() -> None:
     """Create the first admin account when it does not already exist."""
     settings = get_settings()
+    admin_password = validate_admin_seed_password(settings.first_admin_password)
     db = SessionLocal()
 
     try:
@@ -25,9 +26,10 @@ def seed_admin() -> None:
         admin = Doctor(
             full_name=settings.first_admin_full_name,
             email=settings.first_admin_email,
-            password_hash=get_password_hash(settings.first_admin_password),
+            password_hash=get_password_hash(admin_password),
             role=DoctorRole.ADMIN,
             status=DoctorStatus.ACTIVE,
+            must_change_password=False,
         )
         db.add(admin)
         db.commit()

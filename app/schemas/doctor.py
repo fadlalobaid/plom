@@ -6,6 +6,7 @@ from typing import Self
 from pydantic import BaseModel, EmailStr, Field, model_validator
 
 from app.models.enums import DoctorRole, DoctorStatus
+from app.schemas.auth import StrongPassword
 from app.schemas.base import TimestampSchema, UUIDSchema
 
 
@@ -19,7 +20,7 @@ class DoctorCreate(BaseModel):
     national_id: str | None = Field(default=None, min_length=1, max_length=50)
     certificate: str | None = Field(default=None, max_length=500)
     phone_number: str | None = Field(default=None, max_length=50)
-    password: str = Field(min_length=8, max_length=128)
+    password: StrongPassword
 
 
 class DoctorUpdate(BaseModel):
@@ -33,7 +34,7 @@ class DoctorUpdate(BaseModel):
     certificate: str | None = Field(default=None, max_length=500)
     phone_number: str | None = Field(default=None, max_length=50)
     status: DoctorStatus | None = None
-    password: str | None = Field(default=None, min_length=8, max_length=128)
+    password: StrongPassword | None = None
 
     @model_validator(mode="after")
     def reject_null_for_required_fields(self) -> Self:
@@ -63,3 +64,10 @@ class DoctorResponse(UUIDSchema, TimestampSchema):
     phone_number: str | None = None
     role: DoctorRole
     status: DoctorStatus
+    must_change_password: bool
+
+
+class DoctorPasswordResetRequest(BaseModel):
+    """Temporary password assigned to a doctor by an administrator."""
+
+    new_password: StrongPassword

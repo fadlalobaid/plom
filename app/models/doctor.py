@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from sqlalchemy import Date, Enum as SAEnum, String
+from sqlalchemy import Boolean, Date, Enum as SAEnum, String, false
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -38,6 +38,12 @@ class Doctor(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         SAEnum(DoctorStatus, name="doctor_status", native_enum=False),
         nullable=False,
         default=DoctorStatus.ACTIVE,
+    )
+    must_change_password: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+        server_default=false(),
     )
 
     patients_created: Mapped[list[Patient]] = relationship(

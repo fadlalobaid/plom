@@ -8,13 +8,16 @@ from pydantic import ValidationError
 
 from app.models.enums import DoctorRole, DoctorStatus, Gender, XrayViewType
 from app.schemas import (
+    ChangePasswordRequest,
     DiagnosisAnalysisRequest,
     DiagnosisResultCreate,
     DiagnosisResultResponse,
     DoctorCreate,
+    DoctorPasswordResetRequest,
     DoctorResponse,
     DoctorUpdate,
     LoginRequest,
+    PasswordChangeResponse,
     PatientCreate,
     PatientResponse,
     PatientUpdate,
@@ -27,7 +30,10 @@ from app.schemas import (
 SCHEMAS: list[type] = [
     LoginRequest,
     TokenResponse,
+    ChangePasswordRequest,
+    PasswordChangeResponse,
     DoctorCreate,
+    DoctorPasswordResetRequest,
     DoctorResponse,
     DoctorUpdate,
     PatientCreate,
@@ -58,7 +64,7 @@ def run_validation_checks() -> None:
     DoctorCreate(
         full_name="Dr. Ahmed Ali",
         email="doctor@pulmoscan.com",
-        password="securepass",
+        password="securepass1",
         specialization="Pulmonology",
         date_of_birth=date(1980, 1, 1),
         national_id="doctor-123",
@@ -77,6 +83,7 @@ def run_validation_checks() -> None:
             "phone_number": "+123456789",
             "role": DoctorRole.DOCTOR,
             "status": DoctorStatus.ACTIVE,
+            "must_change_password": True,
             "created_at": now,
             "updated_at": now,
         }
@@ -150,6 +157,16 @@ def run_validation_checks() -> None:
     )
 
     assert "password_hash" not in DoctorResponse.model_fields
+    assert "must_change_password" in DoctorResponse.model_fields
+    assert "must_change_password" not in DoctorCreate.model_fields
+
+    TokenResponse(access_token="token", must_change_password=True)
+    ChangePasswordRequest(
+        current_password="temporary1",
+        new_password="replacement2",
+    )
+    PasswordChangeResponse()
+    DoctorPasswordResetRequest(new_password="temporary3")
 
     DoctorUpdate()
     PatientUpdate()

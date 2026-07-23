@@ -7,7 +7,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_active_doctor
+from app.api.deps import get_current_active_doctor, require_password_change_completed
 from app.db.session import get_db
 from app.models.doctor import Doctor
 from app.models.enums import XrayViewType
@@ -28,7 +28,7 @@ from app.services.xray_service import (
 router = APIRouter(
     prefix="/xray-images",
     tags=["xray-images"],
-    dependencies=[Depends(get_current_active_doctor)],
+    dependencies=[Depends(require_password_change_completed)],
 )
 
 

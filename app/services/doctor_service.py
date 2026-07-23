@@ -5,10 +5,10 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.security import get_password_hash
+from app.core.security import get_password_hash, validate_password_strength
 from app.models.doctor import Doctor
 from app.models.enums import DoctorRole, DoctorStatus
-from app.schemas.doctor import DoctorCreate, DoctorUpdate
+from app.schemas.doctor import DoctorCreate, DoctorPasswordResetRequest, DoctorUpdate
 
 
 class DoctorNotFoundError(Exception):
@@ -21,6 +21,10 @@ class EmailAlreadyRegisteredError(Exception):
 
 class DoctorNationalIdAlreadyRegisteredError(Exception):
     """Raised when a doctor national ID is already registered."""
+
+
+class InvalidDoctorPasswordResetError(Exception):
+    """Raised when an administrator attempts to reset a non-doctor account."""
 
 
 def get_doctor_by_id(db: Session, doctor_id: UUID) -> Doctor | None:
@@ -64,6 +68,7 @@ def create_doctor(db: Session, payload: DoctorCreate) -> Doctor:
         password_hash=get_password_hash(payload.password),
         role=DoctorRole.DOCTOR,
         status=DoctorStatus.ACTIVE,
+        must_change_password=True,
     )
     db.add(doctor)
     db.commit()
@@ -94,11 +99,35 @@ def update_doctor(db: Session, doctor_id: UUID, payload: DoctorUpdate) -> Doctor
             raise DoctorNationalIdAlreadyRegisteredError
 
     if "password" in update_data:
-        doctor.password_hash = get_password_hash(update_data.pop("password"))
+        if doctor.role != DoctorRole.DOCTOR:
+            raise InvalidDoctorPasswordResetError
+        password = validate_password_strength(update_data.pop("password"))
+        doctor.password_hash = get_password_hash(password)
+        doctor.must_change_password = True
 
     for field, value in update_data.items():
         setattr(doctor, field, value)
 
+    db.commit()
+    db.refresh(doctor)
+    return doctor
+
+
+def reset_doctor_password(
+    db: Session,
+    doctor_id: UUID,
+    payload: DoctorPasswordResetRequest,
+) -> Doctor:
+    """Assign a temporary password and require the doctor to replace it."""
+    doctor = get_doctor_by_id(db, doctor_id)
+    if doctor is None:
+        raise DoctorNotFoundError
+    if doctor.role != DoctorRole.DOCTOR:
+        raise InvalidDoctorPasswordResetError
+
+    password = validate_password_strength(payload.new_password)
+    doctor.password_hash = get_password_hash(password)
+    doctor.must_change_password = True
     db.commit()
     db.refresh(doctor)
     return doctor

@@ -70,6 +70,21 @@ def get_current_active_doctor(
     return current_doctor
 
 
+def require_password_change_completed(
+    current_doctor: Annotated[Doctor, Depends(get_current_active_doctor)],
+) -> Doctor:
+    """Block clinical operations until a doctor replaces a temporary password."""
+    if (
+        current_doctor.role != DoctorRole.ADMIN
+        and current_doctor.must_change_password
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Password change required",
+        )
+    return current_doctor
+
+
 def require_admin(
     current_doctor: Annotated[Doctor, Depends(get_current_active_doctor)],
 ) -> Doctor:

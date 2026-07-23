@@ -44,11 +44,13 @@ class ResourceOwnershipTests(unittest.TestCase):
             full_name="Owner Doctor",
             email="owner@example.com",
             password_hash="hash",
+            must_change_password=False,
         )
         self.other_doctor = Doctor(
             full_name="Other Doctor",
             email="other@example.com",
             password_hash="hash",
+            must_change_password=False,
         )
         self.db.add_all([self.owner, self.other_doctor])
         self.db.flush()

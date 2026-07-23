@@ -6,7 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_active_doctor
+from app.api.deps import get_current_active_doctor, require_password_change_completed
 from app.db.session import get_db
 from app.models.doctor import Doctor
 from app.models.patient import Patient
@@ -34,7 +34,7 @@ from app.services.xray_service import list_xray_images_by_patient
 router = APIRouter(
     prefix="/patients",
     tags=["patients"],
-    dependencies=[Depends(get_current_active_doctor)],
+    dependencies=[Depends(require_password_change_completed)],
 )
 
 

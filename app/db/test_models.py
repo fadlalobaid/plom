@@ -13,12 +13,14 @@ MODELS: list[type] = [
 
 def load_models() -> list[type]:
     """Import and return all active ORM models."""
+    assert "must_change_password" in Doctor.__table__.columns
     return MODELS
 
 
 def main() -> None:
+    models = load_models()
     tables = sorted(Base.metadata.tables.keys())
-    print(f"Loaded {len(MODELS)} models.")
+    print(f"Loaded {len(models)} models.")
     print(f"Registered tables: {', '.join(tables)}")
 
 

@@ -4,10 +4,24 @@ from uuid import UUID, uuid4
 
 from sqlalchemy.orm import Session
 
-from app.core.security import create_access_token, decode_access_token, verify_password
+from app.core.security import (
+    create_access_token,
+    decode_access_token,
+    get_password_hash,
+    validate_password_strength,
+    verify_password,
+)
 from app.core.token_blacklist import is_jti_revoked, revoke_jti
 from app.models.doctor import Doctor
-from app.services.doctor_service import get_doctor_by_email, get_doctor_by_id
+from app.services.doctor_service import get_doctor_by_email
+
+
+class IncorrectCurrentPasswordError(Exception):
+    """Raised when password confirmation does not match the stored hash."""
+
+
+class PasswordReuseError(Exception):
+    """Raised when the replacement password matches the current password."""
 
 
 def authenticate_doctor(db: Session, email: str, password: str) -> Doctor | None:
@@ -27,6 +41,26 @@ def create_doctor_access_token(doctor: Doctor) -> str:
             "jti": str(uuid4()),
         },
     )
+
+
+def change_doctor_password(
+    db: Session,
+    doctor: Doctor,
+    current_password: str,
+    new_password: str,
+) -> Doctor:
+    """Replace a doctor's password after verifying the current credential."""
+    if not verify_password(current_password, doctor.password_hash):
+        raise IncorrectCurrentPasswordError
+    if verify_password(new_password, doctor.password_hash):
+        raise PasswordReuseError
+
+    validate_password_strength(new_password)
+    doctor.password_hash = get_password_hash(new_password)
+    doctor.must_change_password = False
+    db.commit()
+    db.refresh(doctor)
+    return doctor
 
 
 def is_access_token_revoked(payload: dict) -> bool:

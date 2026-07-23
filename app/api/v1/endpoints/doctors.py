@@ -9,15 +9,23 @@ from sqlalchemy.orm import Session
 from app.api.deps import require_admin
 from app.db.session import get_db
 from app.models.doctor import Doctor
-from app.schemas.doctor import DoctorCreate, DoctorResponse, DoctorUpdate
+from app.schemas.auth import PasswordChangeResponse
+from app.schemas.doctor import (
+    DoctorCreate,
+    DoctorPasswordResetRequest,
+    DoctorResponse,
+    DoctorUpdate,
+)
 from app.services.doctor_service import (
     DoctorNationalIdAlreadyRegisteredError,
     DoctorNotFoundError,
     EmailAlreadyRegisteredError,
+    InvalidDoctorPasswordResetError,
     create_doctor,
     deactivate_doctor,
     get_doctor_by_id,
     list_doctors,
+    reset_doctor_password,
     update_doctor,
 )
 
@@ -71,6 +79,28 @@ def get_doctor_account(
     return doctor
 
 
+@router.post("/{doctor_id}/reset-password", response_model=PasswordChangeResponse)
+def reset_doctor_account_password(
+    doctor_id: UUID,
+    payload: DoctorPasswordResetRequest,
+    db: Annotated[Session, Depends(get_db)],
+) -> PasswordChangeResponse:
+    """Assign a temporary password to a doctor account (admin only)."""
+    try:
+        reset_doctor_password(db, doctor_id, payload)
+    except DoctorNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Doctor not found",
+        ) from exc
+    except InvalidDoctorPasswordResetError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password reset is only available for doctor accounts",
+        ) from exc
+    return PasswordChangeResponse(message="Password reset successfully")
+
+
 @router.patch("/{doctor_id}", response_model=DoctorResponse)
 def update_doctor_account(
     doctor_id: UUID,
@@ -94,6 +124,11 @@ def update_doctor_account(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="National ID is already registered",
+        ) from exc
+    except InvalidDoctorPasswordResetError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password reset is only available for doctor accounts",
         ) from exc
 
 
