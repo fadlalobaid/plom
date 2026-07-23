@@ -4,6 +4,8 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 from uuid import uuid4
 
+from pydantic import ValidationError
+
 from app.models.enums import DoctorRole, DoctorStatus, Gender, XrayViewType
 from app.schemas import (
     DiagnosisAnalysisRequest,
@@ -11,12 +13,15 @@ from app.schemas import (
     DiagnosisResultResponse,
     DoctorCreate,
     DoctorResponse,
+    DoctorUpdate,
     LoginRequest,
     PatientCreate,
     PatientResponse,
+    PatientUpdate,
     TokenResponse,
     XrayImageCreate,
     XrayImageResponse,
+    XrayImageUpdate,
 )
 
 SCHEMAS: list[type] = [
@@ -24,10 +29,13 @@ SCHEMAS: list[type] = [
     TokenResponse,
     DoctorCreate,
     DoctorResponse,
+    DoctorUpdate,
     PatientCreate,
     PatientResponse,
+    PatientUpdate,
     XrayImageCreate,
     XrayImageResponse,
+    XrayImageUpdate,
     DiagnosisAnalysisRequest,
     DiagnosisResultCreate,
     DiagnosisResultResponse,
@@ -52,6 +60,10 @@ def run_validation_checks() -> None:
         email="doctor@pulmoscan.com",
         password="securepass",
         specialization="Pulmonology",
+        date_of_birth=date(1980, 1, 1),
+        national_id="doctor-123",
+        certificate="certificates/doctor-123.pdf",
+        phone_number="+123456789",
     )
     DoctorResponse.model_validate(
         {
@@ -59,6 +71,10 @@ def run_validation_checks() -> None:
             "full_name": "Dr. Ahmed Ali",
             "email": "doctor@pulmoscan.com",
             "specialization": "Pulmonology",
+            "date_of_birth": date(1980, 1, 1),
+            "national_id": "doctor-123",
+            "certificate": "certificates/doctor-123.pdf",
+            "phone_number": "+123456789",
             "role": DoctorRole.DOCTOR,
             "status": DoctorStatus.ACTIVE,
             "created_at": now,
@@ -67,6 +83,10 @@ def run_validation_checks() -> None:
     )
     PatientCreate(
         full_name="Patient One",
+        first_name="Patient",
+        father_name="Parent",
+        mother_name="Mother",
+        last_name="One",
         date_of_birth=date(1990, 5, 15),
         gender=Gender.MALE,
         national_id="1234567890",
@@ -75,6 +95,10 @@ def run_validation_checks() -> None:
         {
             "id": patient_id,
             "full_name": "Patient One",
+            "first_name": "Patient",
+            "father_name": "Parent",
+            "mother_name": "Mother",
+            "last_name": "One",
             "date_of_birth": date(1990, 5, 15),
             "gender": Gender.MALE,
             "phone_number": None,
@@ -89,6 +113,7 @@ def run_validation_checks() -> None:
         patient_id=patient_id,
         view_type=XrayViewType.PA,
         notes="Routine scan",
+        taken_at=now,
     )
     XrayImageResponse.model_validate(
         {
@@ -96,6 +121,8 @@ def run_validation_checks() -> None:
             "patient_id": patient_id,
             "doctor_id": doctor_id,
             "image_path": "uploads/xrays/sample.png",
+            "taken_at": now,
+            "result": "Normal",
             "view_type": XrayViewType.PA,
             "notes": "Routine scan",
             "uploaded_at": now,
@@ -124,6 +151,21 @@ def run_validation_checks() -> None:
     )
 
     assert "password_hash" not in DoctorResponse.model_fields
+
+    DoctorUpdate()
+    PatientUpdate()
+    XrayImageUpdate()
+    invalid_updates = [
+        (DoctorUpdate, {"email": None}),
+        (PatientUpdate, {"national_id": None}),
+        (XrayImageUpdate, {"view_type": None}),
+    ]
+    for schema, payload in invalid_updates:
+        try:
+            schema.model_validate(payload)
+        except ValidationError:
+            continue
+        raise AssertionError(f"{schema.__name__} accepted an unsafe explicit null")
 
 
 def main() -> None:

@@ -11,6 +11,7 @@ from app.db.session import get_db
 from app.models.doctor import Doctor
 from app.schemas.doctor import DoctorCreate, DoctorResponse, DoctorUpdate
 from app.services.doctor_service import (
+    DoctorNationalIdAlreadyRegisteredError,
     DoctorNotFoundError,
     EmailAlreadyRegisteredError,
     create_doctor,
@@ -39,6 +40,11 @@ def create_doctor_account(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email is already registered",
+        ) from exc
+    except DoctorNationalIdAlreadyRegisteredError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="National ID is already registered",
         ) from exc
 
 
@@ -83,6 +89,11 @@ def update_doctor_account(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email is already registered",
+        ) from exc
+    except DoctorNationalIdAlreadyRegisteredError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="National ID is already registered",
         ) from exc
 
 

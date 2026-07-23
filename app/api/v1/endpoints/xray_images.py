@@ -1,5 +1,6 @@
 """X-ray image upload and management API endpoints."""
 
+from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
@@ -39,6 +40,10 @@ def upload_xray_image(
     db: Annotated[Session, Depends(get_db)],
     current_doctor: Annotated[Doctor, Depends(get_current_active_doctor)],
     notes: Annotated[str | None, Form(description="Optional notes")] = None,
+    taken_at: Annotated[
+        datetime | None,
+        Form(description="When the medical X-ray was captured"),
+    ] = None,
 ) -> XrayImage:
     """Upload a chest X-ray image for a patient."""
     if get_patient_by_id(db, patient_id, current_doctor.id) is None:
@@ -56,6 +61,7 @@ def upload_xray_image(
             image_path=image_path,
             view_type=view_type,
             notes=notes,
+            taken_at=taken_at,
         )
     except InvalidXrayFileError as exc:
         raise HTTPException(

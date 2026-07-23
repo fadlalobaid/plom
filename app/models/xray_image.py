@@ -31,6 +31,8 @@ class XrayImage(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         index=True,
     )
     image_path: Mapped[str] = mapped_column(String(500), nullable=False)
+    taken_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    result: Mapped[str | None] = mapped_column(String(100))
     view_type: Mapped[XrayViewType] = mapped_column(
         SAEnum(XrayViewType, name="xray_view_type", native_enum=False),
         nullable=False,

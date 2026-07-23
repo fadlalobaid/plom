@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from sqlalchemy import Enum as SAEnum
-from sqlalchemy import String
+from datetime import date
+
+from sqlalchemy import Date, Enum as SAEnum, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -20,6 +21,14 @@ class Doctor(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     specialization: Mapped[str | None] = mapped_column(String(255))
+    date_of_birth: Mapped[date | None] = mapped_column(Date)
+    national_id: Mapped[str | None] = mapped_column(
+        String(50),
+        unique=True,
+        index=True,
+    )
+    certificate: Mapped[str | None] = mapped_column(String(500))
+    phone_number: Mapped[str | None] = mapped_column(String(50))
     role: Mapped[DoctorRole] = mapped_column(
         SAEnum(DoctorRole, name="doctor_role", native_enum=False),
         nullable=False,

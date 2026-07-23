@@ -19,6 +19,10 @@ class Patient(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "patients"
 
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    first_name: Mapped[str | None] = mapped_column(String(255))
+    father_name: Mapped[str | None] = mapped_column(String(255))
+    mother_name: Mapped[str | None] = mapped_column(String(255))
+    last_name: Mapped[str | None] = mapped_column(String(255))
     date_of_birth: Mapped[date] = mapped_column(Date, nullable=False)
     gender: Mapped[Gender] = mapped_column(
         SAEnum(Gender, name="gender", native_enum=False),

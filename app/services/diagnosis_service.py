@@ -122,12 +122,13 @@ def analyze_and_create_diagnosis_result(
     confidence_score = ai_result["confidence_score"]
     if not isinstance(confidence_score, Decimal):
         confidence_score = Decimal(str(confidence_score))
+    predicted_label = str(ai_result["predicted_label"])
 
     diagnosis_result = DiagnosisResult(
         patient_id=patient_id,
         doctor_id=doctor_id,
         xray_image_id=xray_image_id,
-        predicted_label=str(ai_result["predicted_label"]),
+        predicted_label=predicted_label,
         confidence_score=confidence_score,
         model_version=str(ai_result["model_version"]),
         report_text=str(ai_result["report_text"]) if ai_result["report_text"] is not None else None,
@@ -135,6 +136,7 @@ def analyze_and_create_diagnosis_result(
             str(ai_result["visual_map_path"]) if ai_result["visual_map_path"] is not None else None
         ),
     )
+    xray_image.result = predicted_label
     db.add(diagnosis_result)
     db.commit()
     db.refresh(diagnosis_result)
@@ -147,5 +149,6 @@ def delete_diagnosis_result(db: Session, diagnosis_id: UUID, doctor_id: UUID) ->
     if diagnosis_result is None:
         raise DiagnosisResultNotFoundError
 
+    diagnosis_result.xray_image.result = None
     db.delete(diagnosis_result)
     db.commit()

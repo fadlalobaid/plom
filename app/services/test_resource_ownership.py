@@ -1,8 +1,9 @@
 """Regression tests for doctor-scoped patient resource access."""
 
 import unittest
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal
+from unittest.mock import patch
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
@@ -15,7 +16,11 @@ from app.schemas.patient import (
     PatientResponse,
     PatientXrayHistoryResponse,
 )
-from app.services.diagnosis_service import get_diagnosis_result_by_id
+from app.services.diagnosis_service import (
+    analyze_and_create_diagnosis_result,
+    delete_diagnosis_result,
+    get_diagnosis_result_by_id,
+)
 from app.services.patient_service import get_patient_by_id, list_patients
 from app.services.xray_service import get_xray_image_by_id, list_xray_images_by_patient
 
@@ -80,6 +85,21 @@ class ResourceOwnershipTests(unittest.TestCase):
         self.assertIsNone(get_patient_by_id(self.db, self.patient.id, self.other_doctor.id))
         self.assertEqual(list_patients(self.db, doctor_id=self.other_doctor.id), [])
 
+    def test_structured_patient_names_are_searchable(self) -> None:
+        self.patient.first_name = "StructuredGiven"
+        self.patient.father_name = "StructuredFather"
+        self.patient.mother_name = "StructuredMother"
+        self.patient.last_name = "StructuredFamily"
+        self.db.commit()
+
+        matches = list_patients(
+            self.db,
+            doctor_id=self.owner.id,
+            full_name="StructuredFather",
+        )
+
+        self.assertEqual([patient.id for patient in matches], [self.patient.id])
+
     def test_xray_access_is_scoped_to_patient_owner(self) -> None:
         self.assertIsNotNone(get_xray_image_by_id(self.db, self.xray.id, self.owner.id))
         self.assertIsNone(
@@ -129,6 +149,36 @@ class ResourceOwnershipTests(unittest.TestCase):
         self.assertIsNotNone(diagnosis_result)
         assert diagnosis_result is not None
         self.assertEqual(diagnosis_result.id, self.diagnosis.id)
+
+    @patch("app.services.diagnosis_service.analyze_xray_image")
+    def test_diagnosis_updates_xray_summary_result(self, analyze_mock) -> None:
+        xray = XrayImage(
+            patient_id=self.patient.id,
+            doctor_id=self.owner.id,
+            image_path="unused-second.png",
+            taken_at=datetime(2026, 7, 1, tzinfo=timezone.utc),
+            view_type=XrayViewType.AP,
+        )
+        self.db.add(xray)
+        self.db.commit()
+        analyze_mock.return_value = {
+            "predicted_label": "Pneumonia",
+            "confidence_score": Decimal("0.87500"),
+            "model_version": "test",
+            "report_text": "Test report",
+            "visual_map_path": None,
+        }
+
+        diagnosis = analyze_and_create_diagnosis_result(
+            self.db,
+            patient_id=self.patient.id,
+            xray_image_id=xray.id,
+            doctor_id=self.owner.id,
+        )
+
+        self.assertEqual(xray.result, "Pneumonia")
+        delete_diagnosis_result(self.db, diagnosis.id, self.owner.id)
+        self.assertIsNone(xray.result)
 
 
 if __name__ == "__main__":

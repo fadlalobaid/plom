@@ -1,6 +1,7 @@
 """X-ray image upload and management business logic."""
 
 import shutil
+from datetime import datetime
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -103,6 +104,7 @@ def create_xray_image(
     image_path: str,
     view_type: XrayViewType,
     notes: str | None,
+    taken_at: datetime | None,
 ) -> XrayImage:
     """Create a database record for an uploaded X-ray image."""
     if get_patient_by_id(db, patient_id, doctor_id) is None:
@@ -112,6 +114,7 @@ def create_xray_image(
         patient_id=patient_id,
         doctor_id=doctor_id,
         image_path=image_path,
+        taken_at=taken_at,
         view_type=view_type,
         notes=notes,
     )

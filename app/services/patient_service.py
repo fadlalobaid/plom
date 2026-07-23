@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.models.patient import Patient
@@ -52,7 +52,16 @@ def list_patients(
     )
 
     if full_name is not None:
-        statement = statement.where(Patient.full_name.ilike(f"%{full_name}%"))
+        name_pattern = f"%{full_name}%"
+        statement = statement.where(
+            or_(
+                Patient.full_name.ilike(name_pattern),
+                Patient.first_name.ilike(name_pattern),
+                Patient.father_name.ilike(name_pattern),
+                Patient.mother_name.ilike(name_pattern),
+                Patient.last_name.ilike(name_pattern),
+            )
+        )
     if phone_number is not None:
         statement = statement.where(Patient.phone_number.ilike(f"%{phone_number}%"))
     if national_id is not None:
@@ -72,6 +81,10 @@ def create_patient(
 
     patient = Patient(
         full_name=payload.full_name,
+        first_name=payload.first_name,
+        father_name=payload.father_name,
+        mother_name=payload.mother_name,
+        last_name=payload.last_name,
         date_of_birth=payload.date_of_birth,
         gender=payload.gender,
         phone_number=payload.phone_number,
