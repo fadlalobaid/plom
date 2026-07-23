@@ -14,6 +14,9 @@ app = FastAPI(
     description=settings.project_description,
     version=settings.project_version,
     debug=settings.debug,
+        docs_url=None,
+    redoc_url=None,
+    openapi_url=None
 )
 
 app.add_middleware(
