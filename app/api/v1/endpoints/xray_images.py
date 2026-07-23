@@ -41,7 +41,7 @@ def upload_xray_image(
     notes: Annotated[str | None, Form(description="Optional notes")] = None,
 ) -> XrayImage:
     """Upload a chest X-ray image for a patient."""
-    if get_patient_by_id(db, patient_id) is None:
+    if get_patient_by_id(db, patient_id, current_doctor.id) is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Patient not found",
@@ -73,23 +73,25 @@ def upload_xray_image(
 def get_patient_xray_images(
     patient_id: UUID,
     db: Annotated[Session, Depends(get_db)],
+    current_doctor: Annotated[Doctor, Depends(get_current_active_doctor)],
 ) -> list[XrayImage]:
     """List all X-ray images uploaded for a patient."""
-    if get_patient_by_id(db, patient_id) is None:
+    if get_patient_by_id(db, patient_id, current_doctor.id) is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Patient not found",
         )
-    return list_xray_images_by_patient(db, patient_id)
+    return list_xray_images_by_patient(db, patient_id, current_doctor.id)
 
 
 @router.get("/{xray_image_id}", response_model=XrayImageResponse)
 def get_xray_image_record(
     xray_image_id: UUID,
     db: Annotated[Session, Depends(get_db)],
+    current_doctor: Annotated[Doctor, Depends(get_current_active_doctor)],
 ) -> XrayImage:
     """Retrieve an X-ray image record by ID."""
-    xray_image = get_xray_image_by_id(db, xray_image_id)
+    xray_image = get_xray_image_by_id(db, xray_image_id, current_doctor.id)
     if xray_image is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -103,10 +105,11 @@ def update_xray_image_record(
     xray_image_id: UUID,
     payload: XrayImageUpdate,
     db: Annotated[Session, Depends(get_db)],
+    current_doctor: Annotated[Doctor, Depends(get_current_active_doctor)],
 ) -> XrayImage:
     """Update X-ray image metadata."""
     try:
-        return update_xray_image(db, xray_image_id, payload)
+        return update_xray_image(db, xray_image_id, payload, current_doctor.id)
     except XrayImageNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -118,10 +121,11 @@ def update_xray_image_record(
 def delete_xray_image_record(
     xray_image_id: UUID,
     db: Annotated[Session, Depends(get_db)],
+    current_doctor: Annotated[Doctor, Depends(get_current_active_doctor)],
 ) -> None:
     """Delete an X-ray image record and its stored file."""
     try:
-        delete_xray_image(db, xray_image_id)
+        delete_xray_image(db, xray_image_id, current_doctor.id)
     except XrayImageNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

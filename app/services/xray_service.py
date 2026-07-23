@@ -6,10 +6,11 @@ from uuid import UUID, uuid4
 
 from fastapi import UploadFile
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.core.config import get_settings
 from app.models.enums import XrayViewType
+from app.models.patient import Patient
 from app.models.xray_image import XrayImage
 from app.schemas.xray_image import XrayImageUpdate
 from app.services.patient_service import PatientNotFoundError, get_patient_by_id
@@ -59,16 +60,36 @@ def save_xray_file(file: UploadFile) -> str:
     return destination.as_posix()
 
 
-def get_xray_image_by_id(db: Session, xray_image_id: UUID) -> XrayImage | None:
-    """Return an X-ray image by primary key, or None if not found."""
-    return db.get(XrayImage, xray_image_id)
+def get_xray_image_by_id(
+    db: Session,
+    xray_image_id: UUID,
+    doctor_id: UUID,
+) -> XrayImage | None:
+    """Return an X-ray image only when its patient belongs to the doctor."""
+    return db.scalar(
+        select(XrayImage)
+        .join(Patient, XrayImage.patient_id == Patient.id)
+        .where(
+            XrayImage.id == xray_image_id,
+            Patient.created_by_doctor_id == doctor_id,
+        )
+    )
 
 
-def list_xray_images_by_patient(db: Session, patient_id: UUID) -> list[XrayImage]:
-    """Return all X-ray images linked to a patient ordered by upload time."""
+def list_xray_images_by_patient(
+    db: Session,
+    patient_id: UUID,
+    doctor_id: UUID,
+) -> list[XrayImage]:
+    """Return X-ray images only when the patient belongs to the doctor."""
     statement = (
         select(XrayImage)
-        .where(XrayImage.patient_id == patient_id)
+        .options(selectinload(XrayImage.diagnosis_result))
+        .join(Patient, XrayImage.patient_id == Patient.id)
+        .where(
+            XrayImage.patient_id == patient_id,
+            Patient.created_by_doctor_id == doctor_id,
+        )
         .order_by(XrayImage.uploaded_at.desc())
     )
     return list(db.scalars(statement).all())
@@ -84,7 +105,7 @@ def create_xray_image(
     notes: str | None,
 ) -> XrayImage:
     """Create a database record for an uploaded X-ray image."""
-    if get_patient_by_id(db, patient_id) is None:
+    if get_patient_by_id(db, patient_id, doctor_id) is None:
         raise PatientNotFoundError
 
     xray_image = XrayImage(
@@ -104,9 +125,10 @@ def update_xray_image(
     db: Session,
     xray_image_id: UUID,
     payload: XrayImageUpdate,
+    doctor_id: UUID,
 ) -> XrayImage:
-    """Apply partial metadata updates to an existing X-ray image record."""
-    xray_image = get_xray_image_by_id(db, xray_image_id)
+    """Update an X-ray image whose patient belongs to the doctor."""
+    xray_image = get_xray_image_by_id(db, xray_image_id, doctor_id)
     if xray_image is None:
         raise XrayImageNotFoundError
 
@@ -119,9 +141,9 @@ def update_xray_image(
     return xray_image
 
 
-def delete_xray_image(db: Session, xray_image_id: UUID) -> None:
-    """Delete an X-ray image record and remove its stored file."""
-    xray_image = get_xray_image_by_id(db, xray_image_id)
+def delete_xray_image(db: Session, xray_image_id: UUID, doctor_id: UUID) -> None:
+    """Delete an X-ray image whose patient belongs to the doctor."""
+    xray_image = get_xray_image_by_id(db, xray_image_id, doctor_id)
     if xray_image is None:
         raise XrayImageNotFoundError
 

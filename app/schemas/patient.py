@@ -7,6 +7,8 @@ from pydantic import BaseModel, Field
 
 from app.models.enums import Gender
 from app.schemas.base import TimestampSchema, UUIDSchema
+from app.schemas.diagnosis_result import DiagnosisResultResponse
+from app.schemas.xray_image import XrayImageResponse
 
 
 class PatientCreate(BaseModel):
@@ -41,3 +43,17 @@ class PatientResponse(UUIDSchema, TimestampSchema):
     address: str | None
     national_id: str
     created_by_doctor_id: UUID
+
+
+class PatientXrayHistoryResponse(BaseModel):
+    """An X-ray image and its associated analysis result."""
+
+    xray_image: XrayImageResponse
+    diagnosis_result: DiagnosisResultResponse | None
+
+
+class PatientMedicalRecordResponse(BaseModel):
+    """Patient details with chronological X-ray and diagnosis history."""
+
+    patient: PatientResponse
+    xray_history: list[PatientXrayHistoryResponse]

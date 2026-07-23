@@ -61,37 +61,40 @@ def analyze_xray_diagnosis(
 def get_patient_diagnosis_results(
     patient_id: UUID,
     db: Annotated[Session, Depends(get_db)],
+    current_doctor: Annotated[Doctor, Depends(get_current_active_doctor)],
 ) -> list[DiagnosisResult]:
     """List diagnosis results for a patient."""
-    if get_patient_by_id(db, patient_id) is None:
+    if get_patient_by_id(db, patient_id, current_doctor.id) is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Patient not found",
         )
-    return list_diagnosis_results_by_patient(db, patient_id)
+    return list_diagnosis_results_by_patient(db, patient_id, current_doctor.id)
 
 
 @router.get("/xray-image/{xray_image_id}", response_model=list[DiagnosisResultResponse])
 def get_xray_image_diagnosis_results(
     xray_image_id: UUID,
     db: Annotated[Session, Depends(get_db)],
+    current_doctor: Annotated[Doctor, Depends(get_current_active_doctor)],
 ) -> list[DiagnosisResult]:
     """List diagnosis results linked to an X-ray image."""
-    if get_xray_image_by_id(db, xray_image_id) is None:
+    if get_xray_image_by_id(db, xray_image_id, current_doctor.id) is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="X-ray image not found",
         )
-    return list_diagnosis_results_by_xray_image(db, xray_image_id)
+    return list_diagnosis_results_by_xray_image(db, xray_image_id, current_doctor.id)
 
 
 @router.get("/{diagnosis_id}", response_model=DiagnosisResultResponse)
 def get_diagnosis_result_record(
     diagnosis_id: UUID,
     db: Annotated[Session, Depends(get_db)],
+    current_doctor: Annotated[Doctor, Depends(get_current_active_doctor)],
 ) -> DiagnosisResult:
     """Retrieve a diagnosis result by ID."""
-    diagnosis_result = get_diagnosis_result_by_id(db, diagnosis_id)
+    diagnosis_result = get_diagnosis_result_by_id(db, diagnosis_id, current_doctor.id)
     if diagnosis_result is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -104,10 +107,11 @@ def get_diagnosis_result_record(
 def delete_diagnosis_result_record(
     diagnosis_id: UUID,
     db: Annotated[Session, Depends(get_db)],
+    current_doctor: Annotated[Doctor, Depends(get_current_active_doctor)],
 ) -> None:
     """Delete a diagnosis result record."""
     try:
-        delete_diagnosis_result(db, diagnosis_id)
+        delete_diagnosis_result(db, diagnosis_id, current_doctor.id)
     except DiagnosisResultNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

@@ -17,9 +17,18 @@ class NationalIdAlreadyRegisteredError(Exception):
     """Raised when attempting to use a national ID that is already registered."""
 
 
-def get_patient_by_id(db: Session, patient_id: UUID) -> Patient | None:
-    """Return a patient by primary key, or None if not found."""
-    return db.get(Patient, patient_id)
+def get_patient_by_id(
+    db: Session,
+    patient_id: UUID,
+    doctor_id: UUID,
+) -> Patient | None:
+    """Return a patient only when it belongs to the specified doctor."""
+    return db.scalar(
+        select(Patient).where(
+            Patient.id == patient_id,
+            Patient.created_by_doctor_id == doctor_id,
+        )
+    )
 
 
 def get_patient_by_national_id(db: Session, national_id: str) -> Patient | None:
@@ -30,12 +39,17 @@ def get_patient_by_national_id(db: Session, national_id: str) -> Patient | None:
 def list_patients(
     db: Session,
     *,
+    doctor_id: UUID,
     full_name: str | None = None,
     phone_number: str | None = None,
     national_id: str | None = None,
 ) -> list[Patient]:
-    """Return patients ordered by creation time with optional search filters."""
-    statement = select(Patient).order_by(Patient.created_at.desc())
+    """Return the doctor's patients with optional search filters."""
+    statement = (
+        select(Patient)
+        .where(Patient.created_by_doctor_id == doctor_id)
+        .order_by(Patient.created_at.desc())
+    )
 
     if full_name is not None:
         statement = statement.where(Patient.full_name.ilike(f"%{full_name}%"))
@@ -71,9 +85,14 @@ def create_patient(
     return patient
 
 
-def update_patient(db: Session, patient_id: UUID, payload: PatientUpdate) -> Patient:
-    """Apply partial updates to an existing patient record."""
-    patient = get_patient_by_id(db, patient_id)
+def update_patient(
+    db: Session,
+    patient_id: UUID,
+    payload: PatientUpdate,
+    doctor_id: UUID,
+) -> Patient:
+    """Apply partial updates to a patient owned by the specified doctor."""
+    patient = get_patient_by_id(db, patient_id, doctor_id)
     if patient is None:
         raise PatientNotFoundError
 
@@ -92,9 +111,9 @@ def update_patient(db: Session, patient_id: UUID, payload: PatientUpdate) -> Pat
     return patient
 
 
-def delete_patient(db: Session, patient_id: UUID) -> None:
-    """Permanently delete a patient record."""
-    patient = get_patient_by_id(db, patient_id)
+def delete_patient(db: Session, patient_id: UUID, doctor_id: UUID) -> None:
+    """Permanently delete a patient owned by the specified doctor."""
+    patient = get_patient_by_id(db, patient_id, doctor_id)
     if patient is None:
         raise PatientNotFoundError
 

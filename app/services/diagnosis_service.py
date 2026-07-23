@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.diagnosis_result import DiagnosisResult
+from app.models.patient import Patient
 from app.models.xray_image import XrayImage
 from app.services.ai_service import XrayImageFileNotFoundError, analyze_xray_image
 from app.services.patient_service import get_patient_by_id
@@ -25,16 +26,35 @@ class InvalidDiagnosisRequestError(Exception):
         super().__init__(message)
 
 
-def get_diagnosis_result_by_id(db: Session, diagnosis_id: UUID) -> DiagnosisResult | None:
-    """Return a diagnosis result by primary key, or None if not found."""
-    return db.get(DiagnosisResult, diagnosis_id)
+def get_diagnosis_result_by_id(
+    db: Session,
+    diagnosis_id: UUID,
+    doctor_id: UUID,
+) -> DiagnosisResult | None:
+    """Return a diagnosis only when its patient belongs to the doctor."""
+    return db.scalar(
+        select(DiagnosisResult)
+        .join(Patient, DiagnosisResult.patient_id == Patient.id)
+        .where(
+            DiagnosisResult.id == diagnosis_id,
+            Patient.created_by_doctor_id == doctor_id,
+        )
+    )
 
 
-def list_diagnosis_results_by_patient(db: Session, patient_id: UUID) -> list[DiagnosisResult]:
-    """Return all diagnosis results linked to a patient ordered by creation time."""
+def list_diagnosis_results_by_patient(
+    db: Session,
+    patient_id: UUID,
+    doctor_id: UUID,
+) -> list[DiagnosisResult]:
+    """Return diagnoses only when the patient belongs to the doctor."""
     statement = (
         select(DiagnosisResult)
-        .where(DiagnosisResult.patient_id == patient_id)
+        .join(Patient, DiagnosisResult.patient_id == Patient.id)
+        .where(
+            DiagnosisResult.patient_id == patient_id,
+            Patient.created_by_doctor_id == doctor_id,
+        )
         .order_by(DiagnosisResult.created_at.desc())
     )
     return list(db.scalars(statement).all())
@@ -43,11 +63,16 @@ def list_diagnosis_results_by_patient(db: Session, patient_id: UUID) -> list[Dia
 def list_diagnosis_results_by_xray_image(
     db: Session,
     xray_image_id: UUID,
+    doctor_id: UUID,
 ) -> list[DiagnosisResult]:
-    """Return diagnosis results linked to a specific X-ray image."""
+    """Return X-ray diagnoses only when the patient belongs to the doctor."""
     statement = (
         select(DiagnosisResult)
-        .where(DiagnosisResult.xray_image_id == xray_image_id)
+        .join(Patient, DiagnosisResult.patient_id == Patient.id)
+        .where(
+            DiagnosisResult.xray_image_id == xray_image_id,
+            Patient.created_by_doctor_id == doctor_id,
+        )
         .order_by(DiagnosisResult.created_at.desc())
     )
     return list(db.scalars(statement).all())
@@ -57,12 +82,13 @@ def validate_diagnosis_request(
     db: Session,
     patient_id: UUID,
     xray_image_id: UUID,
+    doctor_id: UUID,
 ) -> XrayImage:
     """Validate analysis input and return the linked X-ray image record."""
-    if get_patient_by_id(db, patient_id) is None:
+    if get_patient_by_id(db, patient_id, doctor_id) is None:
         raise InvalidDiagnosisRequestError("Patient not found")
 
-    xray_image = get_xray_image_by_id(db, xray_image_id)
+    xray_image = get_xray_image_by_id(db, xray_image_id, doctor_id)
     if xray_image is None:
         raise InvalidDiagnosisRequestError("X-ray image not found")
 
@@ -90,7 +116,7 @@ def analyze_and_create_diagnosis_result(
     doctor_id: UUID,
 ) -> DiagnosisResult:
     """Validate input, run AI analysis, and persist the diagnosis result."""
-    xray_image = validate_diagnosis_request(db, patient_id, xray_image_id)
+    xray_image = validate_diagnosis_request(db, patient_id, xray_image_id, doctor_id)
     ai_result = analyze_xray_image(xray_image.image_path)
 
     confidence_score = ai_result["confidence_score"]
@@ -115,9 +141,9 @@ def analyze_and_create_diagnosis_result(
     return diagnosis_result
 
 
-def delete_diagnosis_result(db: Session, diagnosis_id: UUID) -> None:
-    """Permanently delete a diagnosis result record."""
-    diagnosis_result = get_diagnosis_result_by_id(db, diagnosis_id)
+def delete_diagnosis_result(db: Session, diagnosis_id: UUID, doctor_id: UUID) -> None:
+    """Delete a diagnosis whose patient belongs to the doctor."""
+    diagnosis_result = get_diagnosis_result_by_id(db, diagnosis_id, doctor_id)
     if diagnosis_result is None:
         raise DiagnosisResultNotFoundError
 
