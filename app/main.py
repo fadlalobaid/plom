@@ -42,14 +42,19 @@ app.include_router(api_router, prefix=settings.api_v1_prefix)
 
 
 @app.get("/")
-def root() -> dict[str, str]:
-    return {
-        "message": "PulmoScan Backend API is running successfully",
-        "project": settings.project_name,
-        "backend": "FastAPI",
-        "status": "active",
-    }
-
+def root() -> :
+    return """
+    <html>
+        <head>
+            <title>PulmoScan API</title>
+        </head>
+        <body>
+            <h1>PulmoScan Backend API</h1>
+            <p>Status: Active ✅</p>
+            <p>FastAPI Backend is running successfully</p>
+        </body>
+    </html>
+ """
 
 @app.get("/health")
 def health() -> dict[str, str]:
