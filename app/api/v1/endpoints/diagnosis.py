@@ -3,15 +3,17 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_active_doctor, require_password_change_completed
 from app.db.session import get_db
 from app.models.diagnosis_result import DiagnosisResult
 from app.models.doctor import Doctor
+from app.models.enums import AuditAction, AuditEntityType
 from app.schemas.diagnosis_result import DiagnosisAnalysisRequest, DiagnosisResultResponse
 from app.services.ai_service import XrayImageFileNotFoundError
+from app.services.audit_service import create_audit_log
 from app.services.diagnosis_service import (
     DiagnosisResultNotFoundError,
     InvalidDiagnosisRequestError,
@@ -34,12 +36,13 @@ router = APIRouter(
 @router.post("/analyze", response_model=DiagnosisResultResponse, status_code=status.HTTP_201_CREATED)
 def analyze_xray_diagnosis(
     payload: DiagnosisAnalysisRequest,
+    request: Request,
     db: Annotated[Session, Depends(get_db)],
     current_doctor: Annotated[Doctor, Depends(get_current_active_doctor)],
 ) -> DiagnosisResult:
     """Analyze a chest X-ray image and store a mock diagnosis result."""
     try:
-        return analyze_and_create_diagnosis_result(
+        diagnosis_result = analyze_and_create_diagnosis_result(
             db,
             patient_id=payload.patient_id,
             xray_image_id=payload.xray_image_id,
@@ -55,6 +58,22 @@ def analyze_xray_diagnosis(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         ) from exc
+
+    create_audit_log(
+        db,
+        action=AuditAction.CREATE_DIAGNOSIS,
+        user_id=current_doctor.id,
+        entity_type=AuditEntityType.DIAGNOSIS_RESULT,
+        entity_id=diagnosis_result.id,
+        details={
+            "result": "success",
+            "patient_id": str(payload.patient_id),
+            "xray_image_id": str(payload.xray_image_id),
+            "predicted_label": diagnosis_result.predicted_label,
+        },
+        request=request,
+    )
+    return diagnosis_result
 
 
 @router.get("/patient/{patient_id}", response_model=list[DiagnosisResultResponse])

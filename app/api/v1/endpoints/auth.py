@@ -1,13 +1,13 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_active_doctor, security
 from app.db.session import get_db
 from app.models.doctor import Doctor
-from app.models.enums import DoctorStatus
+from app.models.enums import AuditAction, AuditEntityType, DoctorStatus
 from app.schemas.auth import (
     ChangePasswordRequest,
     LoginRequest,
@@ -16,6 +16,7 @@ from app.schemas.auth import (
     TokenResponse,
 )
 from app.schemas.doctor import DoctorResponse
+from app.services.audit_service import create_audit_log
 from app.services.auth_service import (
     IncorrectCurrentPasswordError,
     PasswordReuseError,
@@ -31,6 +32,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 @router.post("/login", response_model=TokenResponse)
 def login(
     payload: LoginRequest,
+    request: Request,
     db: Annotated[Session, Depends(get_db)],
 ) -> TokenResponse:
     doctor = authenticate_doctor(db, payload.email, payload.password)
@@ -48,6 +50,15 @@ def login(
         )
 
     access_token = create_doctor_access_token(doctor)
+    create_audit_log(
+        db,
+        action=AuditAction.LOGIN,
+        user_id=doctor.id,
+        entity_type=AuditEntityType.DOCTOR,
+        entity_id=doctor.id,
+        details={"result": "success", "email": doctor.email},
+        request=request,
+    )
     return TokenResponse(
         access_token=access_token,
         must_change_password=doctor.must_change_password,
@@ -65,6 +76,7 @@ def get_me(
 @router.post("/change-password", response_model=PasswordChangeResponse)
 def change_password(
     payload: ChangePasswordRequest,
+    request: Request,
     db: Annotated[Session, Depends(get_db)],
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
     current_doctor: Annotated[Doctor, Depends(get_current_active_doctor)],
@@ -88,15 +100,34 @@ def change_password(
             detail="New password must be different from the current password",
         ) from exc
     revoke_access_token(credentials.credentials)
+    create_audit_log(
+        db,
+        action=AuditAction.CHANGE_PASSWORD,
+        user_id=current_doctor.id,
+        entity_type=AuditEntityType.DOCTOR,
+        entity_id=current_doctor.id,
+        details={"result": "success"},
+        request=request,
+    )
     return PasswordChangeResponse()
 
 
 @router.post("/logout", response_model=LogoutResponse)
 def logout(
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
-    _current_doctor: Annotated[Doctor, Depends(get_current_active_doctor)],
+    current_doctor: Annotated[Doctor, Depends(get_current_active_doctor)],
 ) -> LogoutResponse:
     """Revoke the current access token and end the session."""
     revoke_access_token(credentials.credentials)
+    create_audit_log(
+        db,
+        action=AuditAction.LOGOUT,
+        user_id=current_doctor.id,
+        entity_type=AuditEntityType.DOCTOR,
+        entity_id=current_doctor.id,
+        details={"result": "success"},
+        request=request,
+    )
     return LogoutResponse()
-

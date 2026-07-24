@@ -4,15 +4,16 @@ from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_active_doctor, require_password_change_completed
 from app.db.session import get_db
 from app.models.doctor import Doctor
-from app.models.enums import XrayViewType
+from app.models.enums import AuditAction, AuditEntityType, XrayViewType
 from app.models.xray_image import XrayImage
 from app.schemas.xray_image import XrayImageResponse, XrayImageUpdate
+from app.services.audit_service import create_audit_log
 from app.services.patient_service import PatientNotFoundError, get_patient_by_id
 from app.services.xray_service import (
     InvalidXrayFileError,
@@ -37,6 +38,7 @@ def upload_xray_image(
     patient_id: Annotated[UUID, Form(description="Patient UUID")],
     view_type: Annotated[XrayViewType, Form(description="Chest X-ray view type")],
     file: Annotated[UploadFile, File(description="Chest X-ray image file")],
+    request: Request,
     db: Annotated[Session, Depends(get_db)],
     current_doctor: Annotated[Doctor, Depends(get_current_active_doctor)],
     notes: Annotated[str | None, Form(description="Optional notes")] = None,
@@ -54,7 +56,7 @@ def upload_xray_image(
 
     try:
         image_path = save_xray_file(file)
-        return create_xray_image(
+        xray_image = create_xray_image(
             db,
             patient_id=patient_id,
             doctor_id=current_doctor.id,
@@ -73,6 +75,21 @@ def upload_xray_image(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Patient not found",
         ) from exc
+
+    create_audit_log(
+        db,
+        action=AuditAction.UPLOAD_XRAY,
+        user_id=current_doctor.id,
+        entity_type=AuditEntityType.XRAY_IMAGE,
+        entity_id=xray_image.id,
+        details={
+            "result": "success",
+            "patient_id": str(patient_id),
+            "view_type": view_type.value,
+        },
+        request=request,
+    )
+    return xray_image
 
 
 @router.get("/patient/{patient_id}", response_model=list[XrayImageResponse])
@@ -126,6 +143,7 @@ def update_xray_image_record(
 @router.delete("/{xray_image_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_xray_image_record(
     xray_image_id: UUID,
+    request: Request,
     db: Annotated[Session, Depends(get_db)],
     current_doctor: Annotated[Doctor, Depends(get_current_active_doctor)],
 ) -> None:
@@ -137,3 +155,13 @@ def delete_xray_image_record(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="X-ray image not found",
         ) from exc
+
+    create_audit_log(
+        db,
+        action=AuditAction.DELETE_XRAY,
+        user_id=current_doctor.id,
+        entity_type=AuditEntityType.XRAY_IMAGE,
+        entity_id=xray_image_id,
+        details={"result": "success"},
+        request=request,
+    )

@@ -3,12 +3,13 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_active_doctor, require_password_change_completed
 from app.db.session import get_db
 from app.models.doctor import Doctor
+from app.models.enums import AuditAction, AuditEntityType
 from app.models.patient import Patient
 from app.schemas.diagnosis_result import DiagnosisResultResponse
 from app.schemas.patient import (
@@ -19,6 +20,7 @@ from app.schemas.patient import (
     PatientXrayHistoryResponse,
 )
 from app.schemas.xray_image import XrayImageResponse
+from app.services.audit_service import create_audit_log
 from app.services.patient_service import (
     InvalidPatientNameError,
     NationalIdAlreadyRegisteredError,
@@ -41,12 +43,13 @@ router = APIRouter(
 @router.post("/", response_model=PatientResponse, status_code=status.HTTP_201_CREATED)
 def create_patient_record(
     payload: PatientCreate,
+    request: Request,
     db: Annotated[Session, Depends(get_db)],
     current_doctor: Annotated[Doctor, Depends(get_current_active_doctor)],
 ) -> Patient:
     """Register a new patient linked to the authenticated doctor."""
     try:
-        return create_patient(db, payload, created_by_doctor_id=current_doctor.id)
+        patient = create_patient(db, payload, created_by_doctor_id=current_doctor.id)
     except NationalIdAlreadyRegisteredError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -57,6 +60,17 @@ def create_patient_record(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=str(exc),
         ) from exc
+
+    create_audit_log(
+        db,
+        action=AuditAction.CREATE_PATIENT,
+        user_id=current_doctor.id,
+        entity_type=AuditEntityType.PATIENT,
+        entity_id=patient.id,
+        details={"result": "success"},
+        request=request,
+    )
+    return patient
 
 
 @router.get("/", response_model=list[PatientResponse])
@@ -128,12 +142,13 @@ def get_patient_medical_record(
 def update_patient_record(
     patient_id: UUID,
     payload: PatientUpdate,
+    request: Request,
     db: Annotated[Session, Depends(get_db)],
     current_doctor: Annotated[Doctor, Depends(get_current_active_doctor)],
 ) -> Patient:
     """Update a patient record."""
     try:
-        return update_patient(db, patient_id, payload, current_doctor.id)
+        patient = update_patient(db, patient_id, payload, current_doctor.id)
     except PatientNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -150,10 +165,25 @@ def update_patient_record(
             detail=str(exc),
         ) from exc
 
+    create_audit_log(
+        db,
+        action=AuditAction.UPDATE_PATIENT,
+        user_id=current_doctor.id,
+        entity_type=AuditEntityType.PATIENT,
+        entity_id=patient.id,
+        details={
+            "result": "success",
+            "updated_fields": sorted(payload.model_fields_set),
+        },
+        request=request,
+    )
+    return patient
+
 
 @router.delete("/{patient_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_patient_record(
     patient_id: UUID,
+    request: Request,
     db: Annotated[Session, Depends(get_db)],
     current_doctor: Annotated[Doctor, Depends(get_current_active_doctor)],
 ) -> None:
@@ -165,3 +195,13 @@ def delete_patient_record(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Patient not found",
         ) from exc
+
+    create_audit_log(
+        db,
+        action=AuditAction.DELETE_PATIENT,
+        user_id=current_doctor.id,
+        entity_type=AuditEntityType.PATIENT,
+        entity_id=patient_id,
+        details={"result": "success"},
+        request=request,
+    )

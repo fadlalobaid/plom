@@ -31,3 +31,29 @@ class XrayViewType(str, enum.Enum):
     PA = "pa"
     AP = "ap"
     LATERAL = "lateral"
+
+
+class AuditAction(str, enum.Enum):
+    """Auditable operations recorded by the system."""
+
+    LOGIN = "LOGIN"
+    LOGOUT = "LOGOUT"
+    CREATE_DOCTOR = "CREATE_DOCTOR"
+    UPDATE_DOCTOR = "UPDATE_DOCTOR"
+    DELETE_DOCTOR = "DELETE_DOCTOR"
+    CREATE_PATIENT = "CREATE_PATIENT"
+    UPDATE_PATIENT = "UPDATE_PATIENT"
+    DELETE_PATIENT = "DELETE_PATIENT"
+    UPLOAD_XRAY = "UPLOAD_XRAY"
+    DELETE_XRAY = "DELETE_XRAY"
+    CREATE_DIAGNOSIS = "CREATE_DIAGNOSIS"
+    CHANGE_PASSWORD = "CHANGE_PASSWORD"
+
+
+class AuditEntityType(str, enum.Enum):
+    """Entity types referenced by audit log entries."""
+
+    DOCTOR = "Doctor"
+    PATIENT = "Patient"
+    XRAY_IMAGE = "XrayImage"
+    DIAGNOSIS_RESULT = "DiagnosisResult"
