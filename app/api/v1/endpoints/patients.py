@@ -11,6 +11,7 @@ from app.db.session import get_db
 from app.models.doctor import Doctor
 from app.models.enums import AuditAction, AuditEntityType
 from app.models.patient import Patient
+from app.core.validators import SearchQuery
 from app.schemas.diagnosis_result import DiagnosisResultResponse
 from app.schemas.patient import (
     PatientCreate,
@@ -52,8 +53,8 @@ def create_patient_record(
         patient = create_patient(db, payload, created_by_doctor_id=current_doctor.id)
     except NationalIdAlreadyRegisteredError as exc:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="National ID is already registered",
+            status_code=status.HTTP_409_CONFLICT,
+            detail="National ID already exists",
         ) from exc
     except InvalidPatientNameError as exc:
         raise HTTPException(
@@ -77,9 +78,18 @@ def create_patient_record(
 def get_patients(
     db: Annotated[Session, Depends(get_db)],
     current_doctor: Annotated[Doctor, Depends(get_current_active_doctor)],
-    full_name: Annotated[str | None, Query(description="Search by patient full name")] = None,
-    phone_number: Annotated[str | None, Query(description="Search by phone number")] = None,
-    national_id: Annotated[str | None, Query(description="Search by national ID")] = None,
+    full_name: Annotated[
+        SearchQuery,
+        Query(description="Search by patient full name"),
+    ] = None,
+    phone_number: Annotated[
+        SearchQuery,
+        Query(description="Search by phone number"),
+    ] = None,
+    national_id: Annotated[
+        SearchQuery,
+        Query(description="Search by national ID"),
+    ] = None,
 ) -> list[Patient]:
     """List patients with optional search filters."""
     return list_patients(
@@ -156,8 +166,8 @@ def update_patient_record(
         ) from exc
     except NationalIdAlreadyRegisteredError as exc:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="National ID is already registered",
+            status_code=status.HTTP_409_CONFLICT,
+            detail="National ID already exists",
         ) from exc
     except InvalidPatientNameError as exc:
         raise HTTPException(

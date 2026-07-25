@@ -4,8 +4,24 @@ from datetime import date
 from typing import Self
 from uuid import UUID
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, model_validator
 
+from app.core.validators import (
+    DateOfBirth,
+    FatherName,
+    FirstName,
+    LastName,
+    MotherName,
+    NationalId,
+    OptionalAddress,
+    OptionalDateOfBirth,
+    OptionalFatherName,
+    OptionalFirstName,
+    OptionalLastName,
+    OptionalMotherName,
+    OptionalNationalId,
+    OptionalPhoneNumber,
+)
 from app.models.enums import Gender
 from app.schemas.base import TimestampSchema, UUIDSchema
 from app.schemas.diagnosis_result import DiagnosisResultResponse
@@ -15,29 +31,29 @@ from app.schemas.xray_image import XrayImageResponse
 class PatientCreate(BaseModel):
     """Payload for registering a new patient."""
 
-    first_name: str = Field(min_length=1, max_length=255)
-    father_name: str = Field(min_length=1, max_length=255)
-    mother_name: str = Field(min_length=1, max_length=255)
-    last_name: str = Field(min_length=1, max_length=255)
-    date_of_birth: date
+    first_name: FirstName
+    father_name: FatherName
+    mother_name: MotherName
+    last_name: LastName
+    date_of_birth: DateOfBirth
     gender: Gender
-    phone_number: str | None = Field(default=None, max_length=50)
-    address: str | None = Field(default=None, max_length=500)
-    national_id: str = Field(min_length=1, max_length=50)
+    phone_number: OptionalPhoneNumber = None
+    address: OptionalAddress = None
+    national_id: NationalId
 
 
 class PatientUpdate(BaseModel):
     """Payload for partially updating a patient record."""
 
-    first_name: str | None = Field(default=None, min_length=1, max_length=255)
-    father_name: str | None = Field(default=None, min_length=1, max_length=255)
-    mother_name: str | None = Field(default=None, min_length=1, max_length=255)
-    last_name: str | None = Field(default=None, min_length=1, max_length=255)
-    date_of_birth: date | None = None
+    first_name: OptionalFirstName = None
+    father_name: OptionalFatherName = None
+    mother_name: OptionalMotherName = None
+    last_name: OptionalLastName = None
+    date_of_birth: OptionalDateOfBirth = None
     gender: Gender | None = None
-    phone_number: str | None = Field(default=None, max_length=50)
-    address: str | None = Field(default=None, max_length=500)
-    national_id: str | None = Field(default=None, min_length=1, max_length=50)
+    phone_number: OptionalPhoneNumber = None
+    address: OptionalAddress = None
+    national_id: OptionalNationalId = None
 
     @model_validator(mode="after")
     def reject_null_for_required_fields(self) -> Self:
@@ -45,6 +61,7 @@ class PatientUpdate(BaseModel):
         required_fields = {
             "first_name",
             "father_name",
+            "mother_name",
             "last_name",
             "date_of_birth",
             "gender",

@@ -2,9 +2,10 @@
 
 from typing import Annotated
 
-from pydantic import AfterValidator, BaseModel, EmailStr, Field
+from pydantic import AfterValidator, BaseModel, Field
 
 from app.core.security import validate_password_strength
+from app.core.validators import NormalizedEmail
 
 StrongPassword = Annotated[
     str,
@@ -16,7 +17,7 @@ StrongPassword = Annotated[
 class LoginRequest(BaseModel):
     """Credentials submitted for JWT authentication."""
 
-    email: EmailStr
+    email: NormalizedEmail
     password: str = Field(min_length=8, max_length=128)
 
 

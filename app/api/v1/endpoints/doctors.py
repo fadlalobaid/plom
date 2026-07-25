@@ -50,13 +50,13 @@ def create_doctor_account(
         doctor = create_doctor(db, payload)
     except EmailAlreadyRegisteredError as exc:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email is already registered",
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Email already exists",
         ) from exc
     except DoctorNationalIdAlreadyRegisteredError as exc:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="National ID is already registered",
+            status_code=status.HTTP_409_CONFLICT,
+            detail="National ID already exists",
         ) from exc
 
     create_audit_log(
@@ -160,13 +160,13 @@ def update_doctor_account(
         ) from exc
     except EmailAlreadyRegisteredError as exc:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email is already registered",
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Email already exists",
         ) from exc
     except DoctorNationalIdAlreadyRegisteredError as exc:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="National ID is already registered",
+            status_code=status.HTTP_409_CONFLICT,
+            detail="National ID already exists",
         ) from exc
     except InvalidDoctorPasswordResetError as exc:
         raise HTTPException(

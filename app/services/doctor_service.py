@@ -2,7 +2,8 @@
 
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.security import get_password_hash, validate_password_strength
@@ -34,7 +35,9 @@ def get_doctor_by_id(db: Session, doctor_id: UUID) -> Doctor | None:
 
 def get_doctor_by_email(db: Session, email: str) -> Doctor | None:
     """Return a doctor by email address, or None if not found."""
-    return db.scalar(select(Doctor).where(Doctor.email == email))
+    return db.scalar(
+        select(Doctor).where(func.lower(Doctor.email) == email.strip().lower())
+    )
 
 
 def get_doctor_by_national_id(db: Session, national_id: str) -> Doctor | None:
@@ -45,6 +48,15 @@ def get_doctor_by_national_id(db: Session, national_id: str) -> Doctor | None:
 def list_doctors(db: Session) -> list[Doctor]:
     """Return all doctor accounts ordered by creation time."""
     return list(db.scalars(select(Doctor).order_by(Doctor.created_at.desc())).all())
+
+
+def _raise_doctor_integrity_error(exc: IntegrityError) -> None:
+    message = str(getattr(exc, "orig", exc)).lower()
+    if "national_id" in message:
+        raise DoctorNationalIdAlreadyRegisteredError from exc
+    if "email" in message:
+        raise EmailAlreadyRegisteredError from exc
+    raise exc
 
 
 def create_doctor(db: Session, payload: DoctorCreate) -> Doctor:
@@ -71,7 +83,11 @@ def create_doctor(db: Session, payload: DoctorCreate) -> Doctor:
         must_change_password=True,
     )
     db.add(doctor)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        _raise_doctor_integrity_error(exc)
     db.refresh(doctor)
     return doctor
 
@@ -84,7 +100,7 @@ def update_doctor(db: Session, doctor_id: UUID, payload: DoctorUpdate) -> Doctor
 
     update_data = payload.model_dump(exclude_unset=True)
 
-    if "email" in update_data and update_data["email"] != doctor.email:
+    if "email" in update_data and update_data["email"].lower() != doctor.email.lower():
         existing_doctor = get_doctor_by_email(db, update_data["email"])
         if existing_doctor is not None and existing_doctor.id != doctor.id:
             raise EmailAlreadyRegisteredError
@@ -108,7 +124,11 @@ def update_doctor(db: Session, doctor_id: UUID, payload: DoctorUpdate) -> Doctor
     for field, value in update_data.items():
         setattr(doctor, field, value)
 
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        _raise_doctor_integrity_error(exc)
     db.refresh(doctor)
     return doctor
 

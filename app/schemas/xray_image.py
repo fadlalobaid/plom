@@ -4,8 +4,9 @@ from datetime import datetime
 from typing import Self
 from uuid import UUID
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, model_validator
 
+from app.core.validators import OptionalNotes
 from app.models.enums import XrayViewType
 from app.schemas.base import TimestampSchema, UUIDSchema
 
@@ -15,7 +16,7 @@ class XrayImageCreate(BaseModel):
 
     patient_id: UUID
     view_type: XrayViewType
-    notes: str | None = None
+    notes: OptionalNotes = None
     taken_at: datetime | None = None
 
 
@@ -23,7 +24,7 @@ class XrayImageUpdate(BaseModel):
     """Payload for partially updating X-ray image metadata."""
 
     view_type: XrayViewType | None = None
-    notes: str | None = None
+    notes: OptionalNotes = None
     taken_at: datetime | None = None
 
     @model_validator(mode="after")

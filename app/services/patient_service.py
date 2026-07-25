@@ -3,6 +3,7 @@
 from uuid import UUID
 
 from sqlalchemy import or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.patient import Patient
@@ -119,7 +120,14 @@ def create_patient(
         created_by_doctor_id=created_by_doctor_id,
     )
     db.add(patient)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        message = str(getattr(exc, "orig", exc)).lower()
+        if "national_id" in message:
+            raise NationalIdAlreadyRegisteredError from exc
+        raise
     db.refresh(patient)
     return patient
 
@@ -153,7 +161,14 @@ def update_patient(
     for field, value in update_data.items():
         setattr(patient, field, value)
 
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        message = str(getattr(exc, "orig", exc)).lower()
+        if "national_id" in message:
+            raise NationalIdAlreadyRegisteredError from exc
+        raise
     db.refresh(patient)
     return patient
 

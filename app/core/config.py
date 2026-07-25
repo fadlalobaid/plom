@@ -81,6 +81,11 @@ class Settings(BaseSettings):
         default=Path("uploads"),
         description="Directory used to store uploaded files.",
     )
+    max_xray_upload_bytes: int = Field(
+        default=10 * 1024 * 1024,
+        ge=1,
+        description="Maximum allowed X-ray upload size in bytes.",
+    )
     first_admin_full_name: str = Field(
         default="System Administrator",
         description="Full name used when seeding the first admin account.",

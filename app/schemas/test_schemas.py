@@ -63,13 +63,21 @@ def run_validation_checks() -> None:
     LoginRequest(email="doctor@pulmoscan.com", password="securepass")
     DoctorCreate(
         full_name="Dr. Ahmed Ali",
-        email="doctor@pulmoscan.com",
+        email=" Doctor@Pulmoscan.com ",
         password="securepass1",
         specialization="Pulmonology",
         date_of_birth=date(1980, 1, 1),
         national_id="doctor-123",
         certificate="certificates/doctor-123.pdf",
-        phone_number="+123456789",
+        phone_number="+1234567890",
+    )
+    assert (
+        DoctorCreate(
+            full_name="Dr. Ahmed Ali",
+            email=" Doctor@Pulmoscan.com ",
+            password="securepass1",
+        ).email
+        == "doctor@pulmoscan.com"
     )
     DoctorResponse.model_validate(
         {

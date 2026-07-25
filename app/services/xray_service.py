@@ -1,6 +1,5 @@
 """X-ray image upload and management business logic."""
 
-import shutil
 from datetime import datetime
 from pathlib import Path
 from uuid import UUID, uuid4
@@ -17,7 +16,20 @@ from app.schemas.xray_image import XrayImageUpdate
 from app.services.patient_service import PatientNotFoundError, get_patient_by_id
 
 ALLOWED_XRAY_EXTENSIONS = {".jpg", ".jpeg", ".png", ".dcm"}
+ALLOWED_XRAY_CONTENT_TYPES = {
+    "image/jpeg",
+    "image/png",
+    "application/dicom",
+    "application/octet-stream",
+}
+EXTENSION_CONTENT_TYPE_MAP = {
+    ".jpg": {"image/jpeg"},
+    ".jpeg": {"image/jpeg"},
+    ".png": {"image/png"},
+    ".dcm": {"application/dicom", "application/octet-stream"},
+}
 XRAY_IMAGES_SUBDIR = "xray_images"
+_READ_CHUNK_SIZE = 1024 * 1024
 
 
 class XrayImageNotFoundError(Exception):
@@ -25,7 +37,15 @@ class XrayImageNotFoundError(Exception):
 
 
 class InvalidXrayFileError(Exception):
-    """Raised when an uploaded file has an unsupported type."""
+    """Raised when an uploaded file fails validation."""
+
+
+class UnsupportedXrayMediaTypeError(InvalidXrayFileError):
+    """Raised when an uploaded file has an unsupported media type."""
+
+
+class XrayFileTooLargeError(InvalidXrayFileError):
+    """Raised when an uploaded file exceeds the configured size limit."""
 
 
 def get_xray_upload_directory() -> Path:
@@ -35,28 +55,61 @@ def get_xray_upload_directory() -> Path:
     return upload_directory
 
 
-def validate_xray_file(filename: str | None) -> str:
-    """Validate the uploaded file extension and return the normalized suffix."""
+def validate_xray_file(filename: str | None, content_type: str | None) -> str:
+    """Validate filename extension and MIME type, returning the normalized suffix."""
     if not filename:
-        raise InvalidXrayFileError("Uploaded file must include a filename")
+        raise UnsupportedXrayMediaTypeError("Uploaded file must include a filename")
 
     extension = Path(filename).suffix.lower()
     if extension not in ALLOWED_XRAY_EXTENSIONS:
-        raise InvalidXrayFileError(
+        raise UnsupportedXrayMediaTypeError(
             "Unsupported file type. Allowed extensions: .jpg, .jpeg, .png, .dcm"
+        )
+
+    normalized_content_type = (content_type or "").split(";")[0].strip().lower()
+    if normalized_content_type not in ALLOWED_XRAY_CONTENT_TYPES:
+        raise UnsupportedXrayMediaTypeError(
+            "Unsupported media type. Allowed types: image/jpeg, image/png, application/dicom"
+        )
+
+    allowed_for_extension = EXTENSION_CONTENT_TYPE_MAP[extension]
+    if normalized_content_type not in allowed_for_extension:
+        raise UnsupportedXrayMediaTypeError(
+            "File extension does not match the declared media type"
         )
     return extension
 
 
 def save_xray_file(file: UploadFile) -> str:
-    """Persist an uploaded X-ray file and return its relative storage path."""
-    extension = validate_xray_file(file.filename)
+    """Persist an uploaded X-ray file after validating type and size."""
+    extension = validate_xray_file(file.filename, file.content_type)
+    max_bytes = get_settings().max_xray_upload_bytes
     upload_directory = get_xray_upload_directory()
     stored_filename = f"{uuid4()}{extension}"
     destination = upload_directory / stored_filename
 
-    with destination.open("wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    total_bytes = 0
+    try:
+        with destination.open("wb") as buffer:
+            while True:
+                chunk = file.file.read(_READ_CHUNK_SIZE)
+                if not chunk:
+                    break
+                total_bytes += len(chunk)
+                if total_bytes > max_bytes:
+                    raise XrayFileTooLargeError(
+                        f"File exceeds the maximum allowed size of {max_bytes} bytes"
+                    )
+                buffer.write(chunk)
+
+        if total_bytes == 0:
+            raise UnsupportedXrayMediaTypeError("Uploaded file is empty")
+    except Exception:
+        if destination.exists():
+            destination.unlink()
+        raise
+    finally:
+        file.file.seek(0)
 
     return destination.as_posix()
 

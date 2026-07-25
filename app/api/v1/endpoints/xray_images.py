@@ -15,8 +15,10 @@ from app.models.xray_image import XrayImage
 from app.schemas.xray_image import XrayImageResponse, XrayImageUpdate
 from app.services.audit_service import create_audit_log
 from app.services.patient_service import PatientNotFoundError, get_patient_by_id
+from app.core.validators import validate_optional_notes
 from app.services.xray_service import (
-    InvalidXrayFileError,
+    UnsupportedXrayMediaTypeError,
+    XrayFileTooLargeError,
     XrayImageNotFoundError,
     create_xray_image,
     delete_xray_image,
@@ -55,6 +57,14 @@ def upload_xray_image(
         )
 
     try:
+        cleaned_notes = validate_optional_notes(notes)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+
+    try:
         image_path = save_xray_file(file)
         xray_image = create_xray_image(
             db,
@@ -62,12 +72,17 @@ def upload_xray_image(
             doctor_id=current_doctor.id,
             image_path=image_path,
             view_type=view_type,
-            notes=notes,
+            notes=cleaned_notes,
             taken_at=taken_at,
         )
-    except InvalidXrayFileError as exc:
+    except UnsupportedXrayMediaTypeError as exc:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail=str(exc),
+        ) from exc
+    except XrayFileTooLargeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
             detail=str(exc),
         ) from exc
     except PatientNotFoundError as exc:
