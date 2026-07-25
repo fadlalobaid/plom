@@ -67,7 +67,7 @@ def run_validation_checks() -> None:
         password="securepass1",
         specialization="Pulmonology",
         date_of_birth=date(1980, 1, 1),
-        national_id="doctor-123",
+        national_id="1234567890",
         certificate="certificates/doctor-123.pdf",
         phone_number="+1234567890",
     )

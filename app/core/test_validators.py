@@ -77,6 +77,10 @@ class PhoneValidatorTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_phone_number("phone123")
 
+    def test_short_phone_is_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            validate_phone_number("091234567")
+
 
 class NationalIdAndDobTests(unittest.TestCase):
     def test_national_id_is_stripped(self) -> None:
@@ -85,6 +89,14 @@ class NationalIdAndDobTests(unittest.TestCase):
     def test_invalid_national_id_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
             validate_national_id("12@@")
+
+    def test_non_numeric_national_id_is_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            validate_national_id("ABC1234567")
+
+    def test_short_national_id_is_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            validate_national_id("123456789")
 
     def test_valid_date_of_birth_is_accepted(self) -> None:
         self.assertEqual(
@@ -181,7 +193,7 @@ class XrayValidationTests(unittest.TestCase):
 
     def test_short_national_id_and_future_dob_are_rejected(self) -> None:
         with self.assertRaises(ValidationError):
-            PatientUpdate.model_validate({"national_id": "12"})
+            PatientUpdate.model_validate({"national_id": "123456789"})
         with self.assertRaises(ValidationError):
             DoctorCreate.model_validate(
                 {

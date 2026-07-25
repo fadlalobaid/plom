@@ -123,7 +123,7 @@ class ResourceOwnershipTests(unittest.TestCase):
                 last_name="Almustafa",
                 date_of_birth=date(2000, 5, 10),
                 gender=Gender.MALE,
-                national_id="patient-2",
+                national_id="1234567891",
             ),
             created_by_doctor_id=self.owner.id,
         )

@@ -9,15 +9,15 @@ from typing import Annotated
 from pydantic import AfterValidator, BeforeValidator, EmailStr
 
 _PHONE_PATTERN = re.compile(r"^\+?[0-9]+$")
-_NATIONAL_ID_PATTERN = re.compile(r"^[A-Za-z0-9\-]+$")
+_NATIONAL_ID_PATTERN = re.compile(r"^[0-9]+$")
 _NAME_ALLOWED_SEPARATORS = set(" .'-")
 _SEARCH_MAX_LENGTH = 100
 _NAME_MIN_LENGTH = 2
 _NAME_MAX_LENGTH = 100
 _FULL_NAME_MAX_LENGTH = 255
-_PHONE_MIN_DIGITS = 7
+_PHONE_MIN_DIGITS = 10
 _PHONE_MAX_DIGITS = 15
-_NATIONAL_ID_MIN_LENGTH = 3
+_NATIONAL_ID_MIN_LENGTH = 10
 _NATIONAL_ID_MAX_LENGTH = 50
 _ADDRESS_MAX_LENGTH = 500
 _NOTES_MAX_LENGTH = 2000
@@ -101,14 +101,16 @@ def normalize_email(value: object) -> object:
 
 
 def validate_phone_number(value: object) -> str:
-    """Validate local or international phone numbers."""
+    """Validate local or international phone numbers with at least 10 digits."""
     cleaned = normalize_required_text(value, field_name="Phone number")
     cleaned = cleaned.replace(" ", "")
     if not _PHONE_PATTERN.fullmatch(cleaned):
-        raise ValueError("Invalid phone number")
+        raise ValueError("Phone number must contain digits only")
     digits = cleaned[1:] if cleaned.startswith("+") else cleaned
-    if not (_PHONE_MIN_DIGITS <= len(digits) <= _PHONE_MAX_DIGITS):
-        raise ValueError("Invalid phone number")
+    if len(digits) < _PHONE_MIN_DIGITS:
+        raise ValueError("Phone number must contain at least 10 digits")
+    if len(digits) > _PHONE_MAX_DIGITS:
+        raise ValueError("Phone number must contain at most 15 digits")
     return cleaned
 
 
@@ -120,19 +122,17 @@ def validate_optional_phone_number(value: object) -> str | None:
 
 
 def validate_national_id(value: object) -> str:
-    """Validate national ID values within the project's string constraints."""
+    """Validate national ID as digits only with at least 10 digits."""
     cleaned = normalize_required_text(value, field_name="National ID")
     cleaned = cleaned.replace(" ", "")
+    if not _NATIONAL_ID_PATTERN.fullmatch(cleaned):
+        raise ValueError("National ID must contain digits only")
     if len(cleaned) < _NATIONAL_ID_MIN_LENGTH:
-        raise ValueError(
-            f"National ID must be at least {_NATIONAL_ID_MIN_LENGTH} characters"
-        )
+        raise ValueError("National ID must contain at least 10 digits")
     if len(cleaned) > _NATIONAL_ID_MAX_LENGTH:
         raise ValueError(
-            f"National ID must be at most {_NATIONAL_ID_MAX_LENGTH} characters"
+            f"National ID must contain at most {_NATIONAL_ID_MAX_LENGTH} digits"
         )
-    if not _NATIONAL_ID_PATTERN.fullmatch(cleaned):
-        raise ValueError("Invalid national ID")
     return cleaned
 
 

@@ -33,8 +33,8 @@ WARNING_BANNER = """
 ============================================================
 """
 
-FAKE_PATIENT_NATIONAL_ID_PREFIX = "FAKE-NID-"
-FAKE_DOCTOR_NATIONAL_ID_PREFIX = "FAKE-DOC-"
+FAKE_DOCTOR_NATIONAL_ID_BASE = 8_000_000_000
+FAKE_PATIENT_NATIONAL_ID_BASE = 9_000_000_000
 FAKE_XRAY_PATH_PREFIX = "uploads/fake/seed_xray_"
 FAKE_DOCTOR_EMAIL_PATTERNS = (
     "doctor%@pulmoscan.fake",
@@ -55,7 +55,10 @@ def _fake_doctor_ids(db) -> list:
     doctors = db.scalars(
         select(Doctor).where(
             or_(
-                Doctor.national_id.like(f"{FAKE_DOCTOR_NATIONAL_ID_PREFIX}%"),
+                Doctor.national_id.between(
+                    str(FAKE_DOCTOR_NATIONAL_ID_BASE + 1),
+                    str(FAKE_DOCTOR_NATIONAL_ID_BASE + 999_999),
+                ),
                 Doctor.email.like(FAKE_DOCTOR_EMAIL_PATTERNS[0]),
                 Doctor.email.like(FAKE_DOCTOR_EMAIL_PATTERNS[1]),
             )
@@ -85,7 +88,10 @@ def cleanup_fake_data() -> None:
             db.scalars(
                 select(Patient.id).where(
                     or_(
-                        Patient.national_id.like(f"{FAKE_PATIENT_NATIONAL_ID_PREFIX}%"),
+                        Patient.national_id.between(
+                            str(FAKE_PATIENT_NATIONAL_ID_BASE + 1),
+                            str(FAKE_PATIENT_NATIONAL_ID_BASE + 999_999),
+                        ),
                         Patient.created_by_doctor_id.in_(fake_doctor_ids)
                         if fake_doctor_ids
                         else Patient.id.is_(None),

@@ -51,7 +51,8 @@ TARGET_DIAGNOSES = 120
 
 DOCTOR_PASSWORD = "sb30021"
 FAKE_DOCTOR_EMAIL_DOMAIN = "sb3.com"
-FAKE_PATIENT_NATIONAL_ID_PREFIX = "FAKE-NID-"
+FAKE_DOCTOR_NATIONAL_ID_BASE = 8_000_000_000
+FAKE_PATIENT_NATIONAL_ID_BASE = 9_000_000_000
 FAKE_XRAY_PATH_PREFIX = "uploads/fake/seed_xray_"
 
 SPECIALIZATIONS = (
@@ -117,8 +118,12 @@ def _fake_doctor_email(index: int) -> str:
     return f"doctor{index}@{FAKE_DOCTOR_EMAIL_DOMAIN}"
 
 
+def _fake_doctor_national_id(index: int) -> str:
+    return str(FAKE_DOCTOR_NATIONAL_ID_BASE + index)
+
+
 def _fake_patient_national_id(index: int) -> str:
-    return f"{FAKE_PATIENT_NATIONAL_ID_PREFIX}{index:05d}"
+    return str(FAKE_PATIENT_NATIONAL_ID_BASE + index)
 
 
 def _fake_xray_path(index: int) -> str:
@@ -140,7 +145,12 @@ def _count_fake_patients(db: Session) -> int:
         db.scalar(
             select(func.count())
             .select_from(Patient)
-            .where(Patient.national_id.like(f"{FAKE_PATIENT_NATIONAL_ID_PREFIX}%"))
+            .where(
+                Patient.national_id.between(
+                    str(FAKE_PATIENT_NATIONAL_ID_BASE + 1),
+                    str(FAKE_PATIENT_NATIONAL_ID_BASE + 999_999),
+                )
+            )
         )
         or 0
     )
@@ -187,7 +197,7 @@ def _seed_doctors(db: Session) -> int:
             password_hash=password_hash,
             specialization=SPECIALIZATIONS[(index - 1) % len(SPECIALIZATIONS)],
             date_of_birth=fake.date_of_birth(minimum_age=30, maximum_age=65),
-            national_id=f"FAKE-DOC-{index:05d}",
+            national_id=_fake_doctor_national_id(index),
             certificate=f"CERT-FAKE-{index:05d}",
             phone_number=fake.numerify(text="+9639########"),
             role=DoctorRole.DOCTOR,
@@ -255,7 +265,12 @@ def _list_fake_patients(db: Session) -> list[Patient]:
     return list(
         db.scalars(
             select(Patient)
-            .where(Patient.national_id.like(f"{FAKE_PATIENT_NATIONAL_ID_PREFIX}%"))
+            .where(
+                Patient.national_id.between(
+                    str(FAKE_PATIENT_NATIONAL_ID_BASE + 1),
+                    str(FAKE_PATIENT_NATIONAL_ID_BASE + 999_999),
+                )
+            )
             .order_by(Patient.national_id.asc())
         ).all()
     )
