@@ -57,3 +57,22 @@ class AuditEntityType(str, enum.Enum):
     PATIENT = "Patient"
     XRAY_IMAGE = "XrayImage"
     DIAGNOSIS_RESULT = "DiagnosisResult"
+
+
+class SyrianGovernorate(str, enum.Enum):
+    """Syrian governorates used for user and patient location."""
+
+    IDLIB = "إدلب"
+    AL_HASAKAH = "الحسكة"
+    ALEPPO = "حلب"
+    HAMA = "حماة"
+    HOMS = "حمص"
+    DAMASCUS = "دمشق"
+    DARA = "درعا"
+    DEIR_EZ_ZOR = "دير الزور"
+    AL_RAQQAH = "الرقة"
+    RIF_DIMASHQ = "ريف دمشق"
+    AS_SUWAYDA = "السويداء"
+    TARTOUS = "طرطوس"
+    AL_QUNEITRA = "القنيطرة"
+    LATAKIA = "اللاذقية"

@@ -77,6 +77,8 @@ def create_doctor(db: Session, payload: DoctorCreate) -> Doctor:
         national_id=payload.national_id,
         certificate=payload.certificate,
         phone_number=payload.phone_number,
+        governorate=payload.governorate,
+        area=payload.area,
         password_hash=get_password_hash(payload.password),
         role=DoctorRole.DOCTOR,
         status=DoctorStatus.ACTIVE,

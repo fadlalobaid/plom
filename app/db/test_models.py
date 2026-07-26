@@ -14,6 +14,10 @@ MODELS: list[type] = [
 def load_models() -> list[type]:
     """Import and return all active ORM models."""
     assert "must_change_password" in Doctor.__table__.columns
+    assert Doctor.__tablename__ == "users"
+    assert "full_name" not in Patient.__table__.columns
+    assert "address" not in Patient.__table__.columns
+    assert "governorate" in Patient.__table__.columns
     return MODELS
 
 

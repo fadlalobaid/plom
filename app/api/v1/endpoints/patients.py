@@ -23,7 +23,6 @@ from app.schemas.patient import (
 from app.schemas.xray_image import XrayImageResponse
 from app.services.audit_service import create_audit_log
 from app.services.patient_service import (
-    InvalidPatientNameError,
     NationalIdAlreadyRegisteredError,
     PatientNotFoundError,
     create_patient,
@@ -55,11 +54,6 @@ def create_patient_record(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="National ID already exists",
-        ) from exc
-    except InvalidPatientNameError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=str(exc),
         ) from exc
 
     create_audit_log(
@@ -168,11 +162,6 @@ def update_patient_record(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="National ID already exists",
-        ) from exc
-    except InvalidPatientNameError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=str(exc),
         ) from exc
 
     create_audit_log(

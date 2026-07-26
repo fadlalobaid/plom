@@ -7,13 +7,14 @@ from uuid import UUID
 from pydantic import BaseModel, model_validator
 
 from app.core.validators import (
+    Area,
     DateOfBirth,
     FatherName,
     FirstName,
     LastName,
     MotherName,
     NationalId,
-    OptionalAddress,
+    OptionalArea,
     OptionalDateOfBirth,
     OptionalFatherName,
     OptionalFirstName,
@@ -22,7 +23,7 @@ from app.core.validators import (
     OptionalNationalId,
     OptionalPhoneNumber,
 )
-from app.models.enums import Gender
+from app.models.enums import Gender, SyrianGovernorate
 from app.schemas.base import TimestampSchema, UUIDSchema
 from app.schemas.diagnosis_result import DiagnosisResultResponse
 from app.schemas.xray_image import XrayImageResponse
@@ -38,7 +39,8 @@ class PatientCreate(BaseModel):
     date_of_birth: DateOfBirth
     gender: Gender
     phone_number: OptionalPhoneNumber = None
-    address: OptionalAddress = None
+    governorate: SyrianGovernorate
+    area: Area
     national_id: NationalId
 
 
@@ -52,7 +54,8 @@ class PatientUpdate(BaseModel):
     date_of_birth: OptionalDateOfBirth = None
     gender: Gender | None = None
     phone_number: OptionalPhoneNumber = None
-    address: OptionalAddress = None
+    governorate: SyrianGovernorate | None = None
+    area: OptionalArea = None
     national_id: OptionalNationalId = None
 
     @model_validator(mode="after")
@@ -65,6 +68,8 @@ class PatientUpdate(BaseModel):
             "last_name",
             "date_of_birth",
             "gender",
+            "governorate",
+            "area",
             "national_id",
         }
         invalid_fields = [
@@ -82,15 +87,15 @@ class PatientUpdate(BaseModel):
 class PatientResponse(UUIDSchema, TimestampSchema):
     """Patient data returned by the API."""
 
-    full_name: str
-    first_name: str | None = None
-    father_name: str | None = None
-    mother_name: str | None = None
-    last_name: str | None = None
+    first_name: str
+    father_name: str
+    mother_name: str
+    last_name: str
     date_of_birth: date
     gender: Gender
     phone_number: str | None
-    address: str | None
+    governorate: SyrianGovernorate
+    area: str
     national_id: str
     created_by_doctor_id: UUID
 

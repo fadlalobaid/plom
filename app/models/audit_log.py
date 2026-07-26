@@ -23,7 +23,7 @@ class AuditLog(UUIDPrimaryKeyMixin, Base):
 
     user_id: Mapped[UUID | None] = mapped_column(
         Uuid(as_uuid=True),
-        ForeignKey("doctors.id", ondelete="SET NULL"),
+        ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )

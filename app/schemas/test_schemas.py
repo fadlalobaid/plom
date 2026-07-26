@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from pydantic import ValidationError
 
-from app.models.enums import DoctorRole, DoctorStatus, Gender, XrayViewType
+from app.models.enums import DoctorRole, DoctorStatus, Gender, SyrianGovernorate, XrayViewType
 from app.schemas import (
     ChangePasswordRequest,
     DiagnosisAnalysisRequest,
@@ -69,13 +69,20 @@ def run_validation_checks() -> None:
         date_of_birth=date(1980, 1, 1),
         national_id="1234567890",
         certificate="certificates/doctor-123.pdf",
-        phone_number="+1234567890",
+        phone_number="0912345678",
+        governorate=SyrianGovernorate.DAMASCUS,
+        area="المزة",
     )
     assert (
         DoctorCreate(
             full_name="Dr. Ahmed Ali",
             email=" Doctor@Pulmoscan.com ",
             password="securepass1",
+            specialization="Pulmonology",
+            date_of_birth=date(1980, 1, 1),
+            phone_number="0912345678",
+            governorate=SyrianGovernorate.DAMASCUS,
+            area="المزة",
         ).email
         == "doctor@pulmoscan.com"
     )
@@ -86,9 +93,11 @@ def run_validation_checks() -> None:
             "email": "doctor@pulmoscan.com",
             "specialization": "Pulmonology",
             "date_of_birth": date(1980, 1, 1),
-            "national_id": "doctor-123",
+            "national_id": "1234567890",
             "certificate": "certificates/doctor-123.pdf",
-            "phone_number": "+123456789",
+            "phone_number": "0912345678",
+            "governorate": SyrianGovernorate.DAMASCUS,
+            "area": "المزة",
             "role": DoctorRole.DOCTOR,
             "status": DoctorStatus.ACTIVE,
             "must_change_password": True,
@@ -104,11 +113,12 @@ def run_validation_checks() -> None:
         date_of_birth=date(1990, 5, 15),
         gender=Gender.MALE,
         national_id="1234567890",
+        governorate=SyrianGovernorate.ALEPPO,
+        area="العزيزية",
     )
     PatientResponse.model_validate(
         {
             "id": patient_id,
-            "full_name": "Patient One",
             "first_name": "Patient",
             "father_name": "Parent",
             "mother_name": "Mother",
@@ -116,7 +126,8 @@ def run_validation_checks() -> None:
             "date_of_birth": date(1990, 5, 15),
             "gender": Gender.MALE,
             "phone_number": None,
-            "address": None,
+            "governorate": SyrianGovernorate.ALEPPO,
+            "area": "العزيزية",
             "national_id": "1234567890",
             "created_by_doctor_id": doctor_id,
             "created_at": now,
@@ -167,6 +178,8 @@ def run_validation_checks() -> None:
     assert "password_hash" not in DoctorResponse.model_fields
     assert "must_change_password" in DoctorResponse.model_fields
     assert "must_change_password" not in DoctorCreate.model_fields
+    assert "full_name" not in PatientResponse.model_fields
+    assert "address" not in PatientCreate.model_fields
 
     TokenResponse(access_token="token", must_change_password=True)
     ChangePasswordRequest(

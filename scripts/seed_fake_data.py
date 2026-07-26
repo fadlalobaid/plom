@@ -28,10 +28,15 @@ from app.core.security import get_password_hash, validate_admin_seed_password
 from app.db.session import SessionLocal
 from app.models.diagnosis_result import DiagnosisResult
 from app.models.doctor import Doctor
-from app.models.enums import DoctorRole, DoctorStatus, Gender, XrayViewType
+from app.models.enums import (
+    DoctorRole,
+    DoctorStatus,
+    Gender,
+    SyrianGovernorate,
+    XrayViewType,
+)
 from app.models.patient import Patient
 from app.models.xray_image import XrayImage
-from app.services.patient_service import build_patient_full_name
 
 # ---------------------------------------------------------------------------
 # Safety / seed configuration
@@ -101,14 +106,19 @@ def _ensure_admin(db: Session) -> None:
         return
 
     admin_password = validate_admin_seed_password(settings.first_admin_password)
-    admin = Doctor(
-        full_name=settings.first_admin_full_name,
-        email=settings.first_admin_email,
-        password_hash=get_password_hash(admin_password),
-        role=DoctorRole.ADMIN,
-        status=DoctorStatus.ACTIVE,
-        must_change_password=False,
-    )
+        admin = Doctor(
+            full_name=settings.first_admin_full_name,
+            email=settings.first_admin_email,
+            password_hash=get_password_hash(admin_password),
+            specialization="Administration",
+            date_of_birth=datetime(1980, 1, 1).date(),
+            phone_number="0900000001",
+            governorate=SyrianGovernorate.DAMASCUS,
+            area="مركز المدينة",
+            role=DoctorRole.ADMIN,
+            status=DoctorStatus.ACTIVE,
+            must_change_password=False,
+        )
     db.add(admin)
     db.commit()
     print(f"Admin created: {settings.first_admin_email}")
@@ -199,7 +209,9 @@ def _seed_doctors(db: Session) -> int:
             date_of_birth=fake.date_of_birth(minimum_age=30, maximum_age=65),
             national_id=_fake_doctor_national_id(index),
             certificate=f"CERT-FAKE-{index:05d}",
-            phone_number=fake.numerify(text="+9639########"),
+            phone_number=fake.numerify(text="09########"),
+            governorate=random.choice(list(SyrianGovernorate)),
+            area=fake.city(),
             role=DoctorRole.DOCTOR,
             status=DoctorStatus.ACTIVE,
             must_change_password=False,
@@ -238,18 +250,17 @@ def _seed_patients(db: Session, doctors: list[Doctor]) -> int:
         father_name = fake.first_name_male()
         mother_name = fake.first_name_female()
         last_name = fake.last_name()
-        full_name = build_patient_full_name(first_name, father_name, last_name)
 
         patient = Patient(
-            full_name=full_name,
             first_name=first_name,
             father_name=father_name,
             mother_name=mother_name,
             last_name=last_name,
             date_of_birth=fake.date_of_birth(minimum_age=1, maximum_age=90),
             gender=gender,
-            phone_number=fake.numerify(text="+9639########"),
-            address=fake.address().replace("\n", ", "),
+            phone_number=fake.numerify(text="09########"),
+            governorate=random.choice(list(SyrianGovernorate)),
+            area=fake.city(),
             national_id=national_id,
             created_by_doctor_id=doctor.id,
         )

@@ -11,8 +11,10 @@ from app.core.security import get_password_hash, verify_password
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
+from datetime import date
+
 from app.models.doctor import Doctor
-from app.models.enums import DoctorRole, DoctorStatus
+from app.models.enums import DoctorRole, DoctorStatus, SyrianGovernorate
 
 TEMPORARY_PASSWORD = "Temporary1"
 ADMIN_PASSWORD = "AdminPass1"
@@ -35,6 +37,11 @@ class ForcedPasswordChangeTests(unittest.TestCase):
             full_name="Temporary Doctor",
             email="temporary@example.com",
             password_hash=TEMPORARY_PASSWORD_HASH,
+            specialization="Pulmonology",
+            date_of_birth=date(1990, 1, 1),
+            phone_number="0911111111",
+            governorate=SyrianGovernorate.DAMASCUS,
+            area="المزة",
             role=DoctorRole.DOCTOR,
             status=DoctorStatus.ACTIVE,
             must_change_password=True,
@@ -43,6 +50,11 @@ class ForcedPasswordChangeTests(unittest.TestCase):
             full_name="System Admin",
             email="admin@example.com",
             password_hash=ADMIN_PASSWORD_HASH,
+            specialization="Administration",
+            date_of_birth=date(1980, 1, 1),
+            phone_number="0922222222",
+            governorate=SyrianGovernorate.DAMASCUS,
+            area="المزة",
             role=DoctorRole.ADMIN,
             status=DoctorStatus.ACTIVE,
             must_change_password=False,
@@ -192,6 +204,11 @@ class ForcedPasswordChangeTests(unittest.TestCase):
                 "full_name": "New Doctor",
                 "email": "new-doctor@example.com",
                 "password": "NewDoctor1",
+                "specialization": "Pulmonology",
+                "date_of_birth": "1992-06-15",
+                "phone_number": "0933333333",
+                "governorate": "دمشق",
+                "area": "المزة",
             },
         )
 

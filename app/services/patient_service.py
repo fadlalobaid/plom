@@ -18,28 +18,6 @@ class NationalIdAlreadyRegisteredError(Exception):
     """Raised when attempting to use a national ID that is already registered."""
 
 
-class InvalidPatientNameError(Exception):
-    """Raised when a complete generated patient name cannot be produced."""
-
-
-def build_patient_full_name(
-    first_name: str | None,
-    father_name: str | None,
-    last_name: str | None,
-) -> str:
-    """Build the stored display name from its required structured parts."""
-    name_parts = (first_name, father_name, last_name)
-    if any(part is None or not part.strip() for part in name_parts):
-        raise InvalidPatientNameError(
-            "First name, father name, and last name are required"
-        )
-
-    full_name = " ".join(part.strip() for part in name_parts if part is not None)
-    if len(full_name) > 255:
-        raise InvalidPatientNameError("Generated full name exceeds 255 characters")
-    return full_name
-
-
 def get_patient_by_id(
     db: Session,
     patient_id: UUID,
@@ -78,7 +56,6 @@ def list_patients(
         name_pattern = f"%{full_name}%"
         statement = statement.where(
             or_(
-                Patient.full_name.ilike(name_pattern),
                 Patient.first_name.ilike(name_pattern),
                 Patient.father_name.ilike(name_pattern),
                 Patient.mother_name.ilike(name_pattern),
@@ -103,11 +80,6 @@ def create_patient(
         raise NationalIdAlreadyRegisteredError
 
     patient = Patient(
-        full_name=build_patient_full_name(
-            payload.first_name,
-            payload.father_name,
-            payload.last_name,
-        ),
         first_name=payload.first_name,
         father_name=payload.father_name,
         mother_name=payload.mother_name,
@@ -115,7 +87,8 @@ def create_patient(
         date_of_birth=payload.date_of_birth,
         gender=payload.gender,
         phone_number=payload.phone_number,
-        address=payload.address,
+        governorate=payload.governorate,
+        area=payload.area,
         national_id=payload.national_id,
         created_by_doctor_id=created_by_doctor_id,
     )
@@ -149,14 +122,6 @@ def update_patient(
         existing_patient = get_patient_by_national_id(db, update_data["national_id"])
         if existing_patient is not None and existing_patient.id != patient.id:
             raise NationalIdAlreadyRegisteredError
-
-    structured_name_fields = {"first_name", "father_name", "last_name"}
-    if structured_name_fields & update_data.keys():
-        update_data["full_name"] = build_patient_full_name(
-            update_data.get("first_name", patient.first_name),
-            update_data.get("father_name", patient.father_name),
-            update_data.get("last_name", patient.last_name),
-        )
 
     for field, value in update_data.items():
         setattr(patient, field, value)

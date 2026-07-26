@@ -70,8 +70,9 @@ class PhoneValidatorTests(unittest.TestCase):
     def test_local_phone_is_accepted(self) -> None:
         self.assertEqual(validate_phone_number("0912345678"), "0912345678")
 
-    def test_international_phone_is_accepted(self) -> None:
-        self.assertEqual(validate_phone_number("+963912345678"), "+963912345678")
+    def test_international_phone_is_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            validate_phone_number("+963912345678")
 
     def test_invalid_phone_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
@@ -140,26 +141,28 @@ class PasswordAndEnumTests(unittest.TestCase):
 class SchemaPatchAndSearchTests(unittest.TestCase):
     def test_doctor_patch_accepts_single_field(self) -> None:
         payload = DoctorUpdate(phone_number="0912345678")
-        self.assertEqual(payload.model_dump(exclude_unset=True), {
-            "phone_number": "0912345678",
-        })
+        self.assertEqual(
+            payload.model_dump(exclude_unset=True),
+            {"phone_number": "0912345678"},
+        )
 
     def test_doctor_patch_rejects_invalid_phone(self) -> None:
         with self.assertRaises(ValidationError):
             DoctorUpdate(phone_number="abc")
 
     def test_patient_create_accepts_arabic_names(self) -> None:
-        payload = PatientCreate(
-            first_name="أحمد",
-            father_name="محمد",
-            mother_name="فاطمة",
-            last_name="علي",
-            date_of_birth=date(1995, 3, 20),
-            gender=Gender.MALE,
-            national_id="9876543210",
-            phone_number="+963912345678",
-            address="دمشق، سوريا",
-        )
+        payload =             PatientCreate(
+                first_name="أحمد",
+                father_name="محمد",
+                mother_name="فاطمة",
+                last_name="علي",
+                date_of_birth=date(1995, 3, 20),
+                gender=Gender.MALE,
+                national_id="9876543210",
+                phone_number="0912345678",
+                governorate="دمشق",
+                area="المزة",
+            )
         self.assertEqual(payload.first_name, "أحمد")
 
     def test_blank_search_query_is_rejected(self) -> None:

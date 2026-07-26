@@ -25,7 +25,7 @@ class DiagnosisResult(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     doctor_id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True),
-        ForeignKey("doctors.id", ondelete="RESTRICT"),
+        ForeignKey("users.id", ondelete="RESTRICT"),
         nullable=False,
         index=True,
     )

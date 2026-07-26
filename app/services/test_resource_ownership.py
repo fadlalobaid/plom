@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.db.base import Base
 from app.models import DiagnosisResult, Doctor, Patient, XrayImage
-from app.models.enums import Gender, XrayViewType
+from app.models.enums import Gender, SyrianGovernorate, XrayViewType
 from app.schemas.patient import (
     PatientCreate,
     PatientMedicalRecordResponse,
@@ -32,6 +32,20 @@ from app.services.patient_service import (
 from app.services.xray_service import get_xray_image_by_id, list_xray_images_by_patient
 
 
+def _make_doctor(*, full_name: str, email: str, phone_number: str) -> Doctor:
+    return Doctor(
+        full_name=full_name,
+        email=email,
+        password_hash="hash",
+        specialization="Pulmonology",
+        date_of_birth=date(1985, 1, 1),
+        phone_number=phone_number,
+        governorate=SyrianGovernorate.DAMASCUS,
+        area="المزة",
+        must_change_password=False,
+    )
+
+
 class ResourceOwnershipTests(unittest.TestCase):
     """Ensure one doctor cannot retrieve another doctor's resources."""
 
@@ -40,30 +54,29 @@ class ResourceOwnershipTests(unittest.TestCase):
         Base.metadata.create_all(self.engine)
         self.db = Session(self.engine)
 
-        self.owner = Doctor(
+        self.owner = _make_doctor(
             full_name="Owner Doctor",
             email="owner@example.com",
-            password_hash="hash",
-            must_change_password=False,
+            phone_number="0911111111",
         )
-        self.other_doctor = Doctor(
+        self.other_doctor = _make_doctor(
             full_name="Other Doctor",
             email="other@example.com",
-            password_hash="hash",
-            must_change_password=False,
+            phone_number="0922222222",
         )
         self.db.add_all([self.owner, self.other_doctor])
         self.db.flush()
 
         self.patient = Patient(
-            full_name="Owned Patient",
             first_name="Owned",
             father_name="Parent",
             mother_name="Mother",
             last_name="Patient",
             date_of_birth=date(1990, 1, 1),
             gender=Gender.MALE,
-            national_id="patient-1",
+            national_id="1234567890",
+            governorate=SyrianGovernorate.DAMASCUS,
+            area="كفرسوسة",
             created_by_doctor_id=self.owner.id,
         )
         self.db.add(self.patient)
@@ -113,7 +126,7 @@ class ResourceOwnershipTests(unittest.TestCase):
 
         self.assertEqual([patient.id for patient in matches], [self.patient.id])
 
-    def test_create_patient_generates_full_name(self) -> None:
+    def test_create_patient_persists_structured_names(self) -> None:
         patient = create_patient(
             self.db,
             PatientCreate(
@@ -124,13 +137,17 @@ class ResourceOwnershipTests(unittest.TestCase):
                 date_of_birth=date(2000, 5, 10),
                 gender=Gender.MALE,
                 national_id="1234567891",
+                governorate=SyrianGovernorate.ALEPPO,
+                area="العزيزية",
             ),
             created_by_doctor_id=self.owner.id,
         )
 
-        self.assertEqual(patient.full_name, "Ahmed Mohammed Almustafa")
+        self.assertEqual(patient.first_name, "Ahmed")
+        self.assertEqual(patient.father_name, "Mohammed")
+        self.assertEqual(patient.last_name, "Almustafa")
 
-    def test_update_name_part_recalculates_full_name(self) -> None:
+    def test_update_name_part_updates_field(self) -> None:
         patient = update_patient(
             self.db,
             self.patient.id,
@@ -138,7 +155,9 @@ class ResourceOwnershipTests(unittest.TestCase):
             self.owner.id,
         )
 
-        self.assertEqual(patient.full_name, "Updated Parent Patient")
+        self.assertEqual(patient.first_name, "Updated")
+        self.assertEqual(patient.father_name, "Parent")
+        self.assertEqual(patient.last_name, "Patient")
 
     def test_xray_access_is_scoped_to_patient_owner(self) -> None:
         self.assertIsNotNone(get_xray_image_by_id(self.db, self.xray.id, self.owner.id))

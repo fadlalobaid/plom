@@ -77,7 +77,7 @@ def upload_xray_image(
         )
     except UnsupportedXrayMediaTypeError as exc:
         raise HTTPException(
-            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         ) from exc
     except XrayFileTooLargeError as exc:

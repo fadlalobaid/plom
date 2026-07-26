@@ -1,12 +1,14 @@
 """Seed the first admin account from application settings."""
 
+from datetime import date
+
 from sqlalchemy import select
 
 from app.core.config import get_settings
 from app.core.security import get_password_hash, validate_admin_seed_password
 from app.db.session import SessionLocal
 from app.models.doctor import Doctor
-from app.models.enums import DoctorRole, DoctorStatus
+from app.models.enums import DoctorRole, DoctorStatus, SyrianGovernorate
 
 
 def seed_admin() -> None:
@@ -27,6 +29,11 @@ def seed_admin() -> None:
             full_name=settings.first_admin_full_name,
             email=settings.first_admin_email,
             password_hash=get_password_hash(admin_password),
+            specialization="Administration",
+            date_of_birth=date(1980, 1, 1),
+            phone_number="0900000001",
+            governorate=SyrianGovernorate.DAMASCUS,
+            area="مركز المدينة",
             role=DoctorRole.ADMIN,
             status=DoctorStatus.ACTIVE,
             must_change_password=False,

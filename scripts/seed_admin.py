@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+from datetime import date
 from pathlib import Path
 
 # Ensure the backend package root is on sys.path when running as a script.
@@ -14,7 +15,8 @@ from app.core.config import get_settings
 from app.core.security import get_password_hash, validate_admin_seed_password
 from app.db.session import SessionLocal
 from app.models.doctor import Doctor
-from app.models.enums import DoctorRole, DoctorStatus
+from app.models.enums import DoctorRole, DoctorStatus, SyrianGovernorate
+
 
 def seed_admin() -> None:
     """Create the default Admin account only if it does not already exist."""
@@ -34,6 +36,11 @@ def seed_admin() -> None:
             full_name=settings.first_admin_full_name,
             email=settings.first_admin_email,
             password_hash=get_password_hash(admin_password),
+            specialization="Administration",
+            date_of_birth=date(1980, 1, 1),
+            phone_number="0900000001",
+            governorate=SyrianGovernorate.DAMASCUS,
+            area="مركز المدينة",
             role=DoctorRole.ADMIN,
             status=DoctorStatus.ACTIVE,
             must_change_password=False,

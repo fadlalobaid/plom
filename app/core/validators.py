@@ -6,20 +6,18 @@ import re
 from datetime import date
 from typing import Annotated
 
-from pydantic import AfterValidator, BeforeValidator, EmailStr
+from pydantic import AfterValidator, BeforeValidator, EmailStr, Field
 
-_PHONE_PATTERN = re.compile(r"^\+?[0-9]+$")
+_PHONE_PATTERN = re.compile(r"^\d{10}$")
 _NATIONAL_ID_PATTERN = re.compile(r"^[0-9]+$")
 _NAME_ALLOWED_SEPARATORS = set(" .'-")
 _SEARCH_MAX_LENGTH = 100
 _NAME_MIN_LENGTH = 2
 _NAME_MAX_LENGTH = 100
 _FULL_NAME_MAX_LENGTH = 255
-_PHONE_MIN_DIGITS = 10
-_PHONE_MAX_DIGITS = 15
 _NATIONAL_ID_MIN_LENGTH = 10
 _NATIONAL_ID_MAX_LENGTH = 50
-_ADDRESS_MAX_LENGTH = 500
+_AREA_MAX_LENGTH = 255
 _NOTES_MAX_LENGTH = 2000
 _SPECIALIZATION_MAX_LENGTH = 255
 _CERTIFICATE_MAX_LENGTH = 500
@@ -72,7 +70,7 @@ def validate_person_name(
 
 
 def validate_full_name(value: object) -> str:
-    """Validate a doctor display name with a larger maximum length."""
+    """Validate a user display name with a larger maximum length."""
     return validate_person_name(
         value,
         field_name="Full name",
@@ -101,16 +99,11 @@ def normalize_email(value: object) -> object:
 
 
 def validate_phone_number(value: object) -> str:
-    """Validate local or international phone numbers with at least 10 digits."""
+    """Validate a phone number as exactly 10 digits with no symbols."""
     cleaned = normalize_required_text(value, field_name="Phone number")
     cleaned = cleaned.replace(" ", "")
     if not _PHONE_PATTERN.fullmatch(cleaned):
-        raise ValueError("Phone number must contain digits only")
-    digits = cleaned[1:] if cleaned.startswith("+") else cleaned
-    if len(digits) < _PHONE_MIN_DIGITS:
-        raise ValueError("Phone number must contain at least 10 digits")
-    if len(digits) > _PHONE_MAX_DIGITS:
-        raise ValueError("Phone number must contain at most 15 digits")
+        raise ValueError("Phone number must be exactly 10 digits")
     return cleaned
 
 
@@ -162,19 +155,35 @@ def validate_optional_date_of_birth(value: object) -> date | None:
     return validate_date_of_birth(value)
 
 
-def validate_address(value: object) -> str:
-    """Apply lightweight address validation without a complex regex."""
-    cleaned = normalize_required_text(value, field_name="Address")
-    if len(cleaned) > _ADDRESS_MAX_LENGTH:
-        raise ValueError(f"Address must be at most {_ADDRESS_MAX_LENGTH} characters")
+def validate_area(value: object) -> str:
+    """Validate a required non-empty area value."""
+    cleaned = normalize_required_text(value, field_name="Area")
+    if len(cleaned) > _AREA_MAX_LENGTH:
+        raise ValueError(f"Area must be at most {_AREA_MAX_LENGTH} characters")
     return cleaned
 
 
-def validate_optional_address(value: object) -> str | None:
+def validate_optional_area(value: object) -> str | None:
     normalized = _empty_to_none(value)
     if normalized is None:
         return None
-    return validate_address(normalized)
+    return validate_area(normalized)
+
+
+def validate_specialization(value: object) -> str:
+    cleaned = normalize_required_text(value, field_name="Specialization")
+    if len(cleaned) > _SPECIALIZATION_MAX_LENGTH:
+        raise ValueError(
+            f"Specialization must be at most {_SPECIALIZATION_MAX_LENGTH} characters"
+        )
+    return cleaned
+
+
+def validate_optional_specialization(value: object) -> str | None:
+    normalized = _empty_to_none(value)
+    if normalized is None:
+        return None
+    return validate_specialization(normalized)
 
 
 def validate_optional_text(
@@ -191,14 +200,6 @@ def validate_optional_text(
     if len(normalized) > max_length:
         raise ValueError(f"{field_name} must be at most {max_length} characters")
     return normalized
-
-
-def validate_optional_specialization(value: object) -> str | None:
-    return validate_optional_text(
-        value,
-        field_name="Specialization",
-        max_length=_SPECIALIZATION_MAX_LENGTH,
-    )
 
 
 def validate_optional_certificate(value: object) -> str | None:
@@ -271,7 +272,11 @@ OptionalNormalizedEmail = Annotated[
     EmailStr | None,
     BeforeValidator(normalize_email),
 ]
-PhoneNumber = Annotated[str, AfterValidator(validate_phone_number)]
+PhoneNumber = Annotated[
+    str,
+    Field(min_length=10, max_length=10, pattern=r"^\d{10}$"),
+    AfterValidator(validate_phone_number),
+]
 OptionalPhoneNumber = Annotated[
     str | None,
     BeforeValidator(_empty_to_none),
@@ -288,11 +293,13 @@ OptionalDateOfBirth = Annotated[
     date | None,
     AfterValidator(validate_optional_date_of_birth),
 ]
-OptionalAddress = Annotated[
+Area = Annotated[str, AfterValidator(validate_area)]
+OptionalArea = Annotated[
     str | None,
     BeforeValidator(_empty_to_none),
-    AfterValidator(validate_optional_address),
+    AfterValidator(validate_optional_area),
 ]
+Specialization = Annotated[str, AfterValidator(validate_specialization)]
 OptionalSpecialization = Annotated[
     str | None,
     BeforeValidator(_empty_to_none),

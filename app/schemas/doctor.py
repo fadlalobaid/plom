@@ -1,4 +1,4 @@
-"""Doctor request and response schemas."""
+"""Doctor/user request and response schemas."""
 
 from datetime import date
 from typing import Self
@@ -6,8 +6,11 @@ from typing import Self
 from pydantic import BaseModel, model_validator
 
 from app.core.validators import (
+    Area,
+    DateOfBirth,
     FullName,
     NormalizedEmail,
+    OptionalArea,
     OptionalCertificate,
     OptionalDateOfBirth,
     OptionalFullName,
@@ -15,8 +18,10 @@ from app.core.validators import (
     OptionalNormalizedEmail,
     OptionalPhoneNumber,
     OptionalSpecialization,
+    PhoneNumber,
+    Specialization,
 )
-from app.models.enums import DoctorRole, DoctorStatus
+from app.models.enums import DoctorRole, DoctorStatus, SyrianGovernorate
 from app.schemas.auth import StrongPassword
 from app.schemas.base import TimestampSchema, UUIDSchema
 
@@ -26,11 +31,13 @@ class DoctorCreate(BaseModel):
 
     full_name: FullName
     email: NormalizedEmail
-    specialization: OptionalSpecialization = None
-    date_of_birth: OptionalDateOfBirth = None
+    specialization: Specialization
+    date_of_birth: DateOfBirth
     national_id: OptionalNationalId = None
     certificate: OptionalCertificate = None
-    phone_number: OptionalPhoneNumber = None
+    phone_number: PhoneNumber
+    governorate: SyrianGovernorate
+    area: Area
     password: StrongPassword
 
 
@@ -44,13 +51,25 @@ class DoctorUpdate(BaseModel):
     national_id: OptionalNationalId = None
     certificate: OptionalCertificate = None
     phone_number: OptionalPhoneNumber = None
+    governorate: SyrianGovernorate | None = None
+    area: OptionalArea = None
     status: DoctorStatus | None = None
     password: StrongPassword | None = None
 
     @model_validator(mode="after")
     def reject_null_for_required_fields(self) -> Self:
         """Reject explicit nulls that cannot be persisted safely."""
-        required_fields = {"full_name", "email", "status", "password"}
+        required_fields = {
+            "full_name",
+            "email",
+            "specialization",
+            "date_of_birth",
+            "phone_number",
+            "governorate",
+            "area",
+            "status",
+            "password",
+        }
         invalid_fields = [
             field
             for field in required_fields & self.model_fields_set
@@ -68,11 +87,13 @@ class DoctorResponse(UUIDSchema, TimestampSchema):
 
     full_name: str
     email: NormalizedEmail
-    specialization: str | None
-    date_of_birth: date | None = None
+    specialization: str
+    date_of_birth: date
     national_id: str | None = None
     certificate: str | None = None
-    phone_number: str | None = None
+    phone_number: str
+    governorate: SyrianGovernorate
+    area: str
     role: DoctorRole
     status: DoctorStatus
     must_change_password: bool
