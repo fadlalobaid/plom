@@ -106,19 +106,19 @@ def _ensure_admin(db: Session) -> None:
         return
 
     admin_password = validate_admin_seed_password(settings.first_admin_password)
-        admin = Doctor(
-            full_name=settings.first_admin_full_name,
-            email=settings.first_admin_email,
-            password_hash=get_password_hash(admin_password),
-            specialization="Administration",
-            date_of_birth=datetime(1980, 1, 1).date(),
-            phone_number="0900000001",
-            governorate=SyrianGovernorate.DAMASCUS,
-            area="مركز المدينة",
-            role=DoctorRole.ADMIN,
-            status=DoctorStatus.ACTIVE,
-            must_change_password=False,
-        )
+    admin = Doctor(
+        full_name=settings.first_admin_full_name,
+        email=settings.first_admin_email,
+        password_hash=get_password_hash(admin_password),
+        specialization="Administration",
+        date_of_birth=datetime(1980, 1, 1).date(),
+        phone_number="0900000001",
+        governorate=SyrianGovernorate.DAMASCUS,
+        area="مركز المدينة",
+        role=DoctorRole.ADMIN,
+        status=DoctorStatus.ACTIVE,
+        must_change_password=False,
+    )
     db.add(admin)
     db.commit()
     print(f"Admin created: {settings.first_admin_email}")
@@ -144,7 +144,10 @@ def _list_fake_doctors(db: Session) -> list[Doctor]:
     return list(
         db.scalars(
             select(Doctor)
-            .where(Doctor.email.like(f"%@{FAKE_DOCTOR_EMAIL_DOMAIN}"))
+            .where(
+                Doctor.email.like(f"doctor%@{FAKE_DOCTOR_EMAIL_DOMAIN}"),
+                Doctor.role == DoctorRole.DOCTOR,
+            )
             .order_by(Doctor.email.asc())
         ).all()
     )

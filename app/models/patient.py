@@ -29,7 +29,12 @@ class Patient(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     phone_number: Mapped[str | None] = mapped_column(String(10))
     governorate: Mapped[SyrianGovernorate] = mapped_column(
-        SAEnum(SyrianGovernorate, name="syrian_governorate", native_enum=False),
+        SAEnum(
+            SyrianGovernorate,
+            name="syrian_governorate",
+            native_enum=False,
+            values_callable=lambda enum_cls: [member.value for member in enum_cls],
+        ),
         nullable=False,
     )
     area: Mapped[str] = mapped_column(String(255), nullable=False)
