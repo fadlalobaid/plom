@@ -35,7 +35,7 @@ WARNING_BANNER = """
 
 FAKE_DOCTOR_NATIONAL_ID_BASE = 8_000_000_000
 FAKE_PATIENT_NATIONAL_ID_BASE = 9_000_000_000
-FAKE_XRAY_PATH_PREFIX = "uploads/fake/seed_xray_"
+FAKE_XRAY_PATH_PREFIX = "fake/seed_xray_"
 FAKE_DOCTOR_EMAIL_PATTERNS = (
     "doctor%@pulmoscan.fake",
     "doctor%@sb3.com",

@@ -90,7 +90,7 @@ class DoctorResponse(UUIDSchema, TimestampSchema):
     specialization: str
     date_of_birth: date
     national_id: str | None = None
-    certificate: str | None = None
+    certificate: date | None = None
     phone_number: str
     governorate: SyrianGovernorate
     area: str

@@ -1,6 +1,7 @@
 """X-ray image upload and management API endpoints."""
 
 from datetime import datetime
+from pathlib import Path
 from typing import Annotated
 from uuid import UUID
 
@@ -8,24 +9,29 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Uplo
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_active_doctor, require_password_change_completed
+from app.core.validators import validate_optional_notes
 from app.db.session import get_db
 from app.models.doctor import Doctor
 from app.models.enums import AuditAction, AuditEntityType, XrayViewType
 from app.models.xray_image import XrayImage
-from app.schemas.xray_image import XrayImageResponse, XrayImageUpdate
+from app.schemas.xray_image import (
+    XrayImageResponse,
+    XrayImageUpdate,
+    XraySignedUrlResponse,
+)
 from app.services.audit_service import create_audit_log
 from app.services.patient_service import PatientNotFoundError, get_patient_by_id
-from app.core.validators import validate_optional_notes
 from app.services.xray_service import (
     UnsupportedXrayMediaTypeError,
     XrayFileTooLargeError,
     XrayImageNotFoundError,
-    create_xray_image,
+    XrayStorageError,
     delete_xray_image,
     get_xray_image_by_id,
+    get_xray_signed_url,
     list_xray_images_by_patient,
-    save_xray_file,
     update_xray_image,
+    upload_and_create_xray_image,
 )
 
 router = APIRouter(
@@ -49,7 +55,7 @@ def upload_xray_image(
         Form(description="When the medical X-ray was captured"),
     ] = None,
 ) -> XrayImage:
-    """Upload a chest X-ray image for a patient."""
+    """Upload a chest X-ray image for a patient to private Supabase Storage."""
     if get_patient_by_id(db, patient_id, current_doctor.id) is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -65,12 +71,11 @@ def upload_xray_image(
         ) from exc
 
     try:
-        image_path = save_xray_file(file)
-        xray_image = create_xray_image(
+        xray_image = upload_and_create_xray_image(
             db,
             patient_id=patient_id,
             doctor_id=current_doctor.id,
-            image_path=image_path,
+            file=file,
             view_type=view_type,
             notes=cleaned_notes,
             taken_at=taken_at,
@@ -83,6 +88,11 @@ def upload_xray_image(
     except XrayFileTooLargeError as exc:
         raise HTTPException(
             status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+            detail=str(exc),
+        ) from exc
+    except XrayStorageError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
             detail=str(exc),
         ) from exc
     except PatientNotFoundError as exc:
@@ -100,6 +110,9 @@ def upload_xray_image(
         details={
             "result": "success",
             "patient_id": str(patient_id),
+            "xray_image_id": str(xray_image.id),
+            "storage_path": xray_image.image_path,
+            "file_extension": Path(xray_image.image_path).suffix.lower(),
             "view_type": view_type.value,
         },
         request=request,
@@ -120,6 +133,33 @@ def get_patient_xray_images(
             detail="Patient not found",
         )
     return list_xray_images_by_patient(db, patient_id, current_doctor.id)
+
+
+@router.get("/{xray_image_id}/signed-url", response_model=XraySignedUrlResponse)
+def get_xray_image_signed_url(
+    xray_image_id: UUID,
+    db: Annotated[Session, Depends(get_db)],
+    current_doctor: Annotated[Doctor, Depends(get_current_active_doctor)],
+) -> XraySignedUrlResponse:
+    """Return a temporary signed URL for a private X-ray object."""
+    try:
+        signed_url, expires_in = get_xray_signed_url(
+            db,
+            xray_image_id,
+            current_doctor.id,
+        )
+    except XrayImageNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="X-ray image not found",
+        ) from exc
+    except XrayStorageError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(exc),
+        ) from exc
+
+    return XraySignedUrlResponse(signed_url=signed_url, expires_in=expires_in)
 
 
 @router.get("/{xray_image_id}", response_model=XrayImageResponse)
@@ -162,13 +202,18 @@ def delete_xray_image_record(
     db: Annotated[Session, Depends(get_db)],
     current_doctor: Annotated[Doctor, Depends(get_current_active_doctor)],
 ) -> None:
-    """Delete an X-ray image record and its stored file."""
+    """Delete an X-ray image record and its stored file from Supabase."""
     try:
-        delete_xray_image(db, xray_image_id, current_doctor.id)
+        storage_path = delete_xray_image(db, xray_image_id, current_doctor.id)
     except XrayImageNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="X-ray image not found",
+        ) from exc
+    except XrayStorageError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(exc),
         ) from exc
 
     create_audit_log(
@@ -177,6 +222,11 @@ def delete_xray_image_record(
         user_id=current_doctor.id,
         entity_type=AuditEntityType.XRAY_IMAGE,
         entity_id=xray_image_id,
-        details={"result": "success"},
+        details={
+            "result": "success",
+            "xray_image_id": str(xray_image_id),
+            "storage_path": storage_path,
+            "file_extension": Path(storage_path).suffix.lower(),
+        },
         request=request,
     )

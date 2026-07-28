@@ -60,7 +60,11 @@ class AuditEntityType(str, enum.Enum):
 
 
 class SyrianGovernorate(str, enum.Enum):
-    """Syrian governorates used for user and patient location."""
+    """Syrian governorates used for user and patient location.
+
+    Includes an explicit ``خارج سوريا`` option for non-Syrian locations.
+    Clients should send the Arabic value strings, not the enum member names.
+    """
 
     IDLIB = "إدلب"
     AL_HASAKAH = "الحسكة"
@@ -76,3 +80,4 @@ class SyrianGovernorate(str, enum.Enum):
     TARTOUS = "طرطوس"
     AL_QUNEITRA = "القنيطرة"
     LATAKIA = "اللاذقية"
+    OUTSIDE_SYRIA = "خارج سوريا"

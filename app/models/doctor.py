@@ -31,7 +31,7 @@ class Doctor(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         unique=True,
         index=True,
     )
-    certificate: Mapped[str | None] = mapped_column(String(500))
+    certificate: Mapped[date | None] = mapped_column(Date)
     phone_number: Mapped[str] = mapped_column(String(10), nullable=False)
     governorate: Mapped[SyrianGovernorate] = mapped_column(
         SAEnum(

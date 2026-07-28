@@ -1,8 +1,11 @@
 """X-ray image upload and management business logic."""
 
+from __future__ import annotations
+
+import logging
 from datetime import datetime
 from pathlib import Path
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from fastapi import UploadFile
 from sqlalchemy import select
@@ -14,6 +17,16 @@ from app.models.patient import Patient
 from app.models.xray_image import XrayImage
 from app.schemas.xray_image import XrayImageUpdate
 from app.services.patient_service import PatientNotFoundError, get_patient_by_id
+from app.services.storage_service import (
+    StorageDeleteError,
+    StorageError,
+    StorageUploadError,
+    create_signed_xray_url,
+    delete_xray_file,
+    upload_xray_file,
+)
+
+logger = logging.getLogger(__name__)
 
 ALLOWED_XRAY_EXTENSIONS = {".jpg", ".jpeg", ".png", ".dcm"}
 ALLOWED_XRAY_CONTENT_TYPES = {
@@ -28,7 +41,6 @@ EXTENSION_CONTENT_TYPE_MAP = {
     ".png": {"image/png"},
     ".dcm": {"application/dicom", "application/octet-stream"},
 }
-XRAY_IMAGES_SUBDIR = "xray_images"
 _READ_CHUNK_SIZE = 1024 * 1024
 
 
@@ -48,11 +60,8 @@ class XrayFileTooLargeError(InvalidXrayFileError):
     """Raised when an uploaded file exceeds the configured size limit."""
 
 
-def get_xray_upload_directory() -> Path:
-    """Return the directory used to store uploaded X-ray image files."""
-    upload_directory = get_settings().upload_dir / XRAY_IMAGES_SUBDIR
-    upload_directory.mkdir(parents=True, exist_ok=True)
-    return upload_directory
+class XrayStorageError(Exception):
+    """Raised when Supabase Storage operations fail for an X-ray file."""
 
 
 def validate_xray_file(filename: str | None, content_type: str | None) -> str:
@@ -80,38 +89,46 @@ def validate_xray_file(filename: str | None, content_type: str | None) -> str:
     return extension
 
 
-def save_xray_file(file: UploadFile) -> str:
-    """Persist an uploaded X-ray file after validating type and size."""
+def read_validated_xray_bytes(file: UploadFile) -> tuple[bytes, str, str]:
+    """Validate type/size and return (file_bytes, extension, content_type)."""
     extension = validate_xray_file(file.filename, file.content_type)
     max_bytes = get_settings().max_xray_upload_bytes
-    upload_directory = get_xray_upload_directory()
-    stored_filename = f"{uuid4()}{extension}"
-    destination = upload_directory / stored_filename
+    content_type = (file.content_type or "").split(";")[0].strip().lower()
 
+    chunks: list[bytes] = []
     total_bytes = 0
     try:
-        with destination.open("wb") as buffer:
-            while True:
-                chunk = file.file.read(_READ_CHUNK_SIZE)
-                if not chunk:
-                    break
-                total_bytes += len(chunk)
-                if total_bytes > max_bytes:
-                    raise XrayFileTooLargeError(
-                        f"File exceeds the maximum allowed size of {max_bytes} bytes"
-                    )
-                buffer.write(chunk)
-
-        if total_bytes == 0:
-            raise UnsupportedXrayMediaTypeError("Uploaded file is empty")
-    except Exception:
-        if destination.exists():
-            destination.unlink()
-        raise
+        while True:
+            chunk = file.file.read(_READ_CHUNK_SIZE)
+            if not chunk:
+                break
+            total_bytes += len(chunk)
+            if total_bytes > max_bytes:
+                raise XrayFileTooLargeError(
+                    f"File exceeds the maximum allowed size of {max_bytes} bytes"
+                )
+            chunks.append(chunk)
     finally:
         file.file.seek(0)
 
-    return destination.as_posix()
+    if total_bytes == 0:
+        raise UnsupportedXrayMediaTypeError("Uploaded file is empty")
+
+    return b"".join(chunks), extension, content_type
+
+
+def _is_legacy_local_path(image_path: str) -> bool:
+    return image_path.startswith("uploads/") or Path(image_path).is_absolute()
+
+
+def _remove_stored_xray_file(image_path: str) -> None:
+    """Remove a stored X-ray from Supabase, with legacy local-path fallback."""
+    if _is_legacy_local_path(image_path):
+        local_path = Path(image_path)
+        if local_path.is_file():
+            local_path.unlink()
+        return
+    delete_xray_file(image_path)
 
 
 def get_xray_image_by_id(
@@ -177,6 +194,56 @@ def create_xray_image(
     return xray_image
 
 
+def upload_and_create_xray_image(
+    db: Session,
+    *,
+    patient_id: UUID,
+    doctor_id: UUID,
+    file: UploadFile,
+    view_type: XrayViewType,
+    notes: str | None,
+    taken_at: datetime | None,
+) -> XrayImage:
+    """Validate, upload to Supabase Storage, then persist the X-ray record."""
+    if get_patient_by_id(db, patient_id, doctor_id) is None:
+        raise PatientNotFoundError
+
+    file_bytes, extension, content_type = read_validated_xray_bytes(file)
+
+    try:
+        storage_path = upload_xray_file(
+            doctor_id=doctor_id,
+            patient_id=patient_id,
+            file_bytes=file_bytes,
+            extension=extension,
+            content_type=content_type,
+        )
+    except StorageUploadError as exc:
+        raise XrayStorageError("Failed to upload X-ray file to storage") from exc
+    except StorageError as exc:
+        raise XrayStorageError("X-ray storage is unavailable") from exc
+
+    try:
+        return create_xray_image(
+            db,
+            patient_id=patient_id,
+            doctor_id=doctor_id,
+            image_path=storage_path,
+            view_type=view_type,
+            notes=notes,
+            taken_at=taken_at,
+        )
+    except Exception:
+        try:
+            delete_xray_file(storage_path)
+        except Exception:
+            logger.exception(
+                "Failed to delete orphaned X-ray object after database error: %s",
+                storage_path,
+            )
+        raise
+
+
 def update_xray_image(
     db: Session,
     xray_image_id: UUID,
@@ -197,15 +264,45 @@ def update_xray_image(
     return xray_image
 
 
-def delete_xray_image(db: Session, xray_image_id: UUID, doctor_id: UUID) -> None:
-    """Delete an X-ray image whose patient belongs to the doctor."""
+def delete_xray_image(db: Session, xray_image_id: UUID, doctor_id: UUID) -> str:
+    """Delete storage object then database record. Returns the storage path."""
     xray_image = get_xray_image_by_id(db, xray_image_id, doctor_id)
     if xray_image is None:
         raise XrayImageNotFoundError
 
-    image_path = Path(xray_image.image_path)
-    if image_path.is_file():
-        image_path.unlink()
+    storage_path = xray_image.image_path
+
+    try:
+        _remove_stored_xray_file(storage_path)
+    except StorageDeleteError as exc:
+        raise XrayStorageError("Failed to delete X-ray file from storage") from exc
+    except StorageError as exc:
+        raise XrayStorageError("X-ray storage is unavailable") from exc
 
     db.delete(xray_image)
     db.commit()
+    return storage_path
+
+
+def get_xray_signed_url(
+    db: Session,
+    xray_image_id: UUID,
+    doctor_id: UUID,
+) -> tuple[str, int]:
+    """Return a temporary signed URL when the doctor owns the X-ray patient."""
+    xray_image = get_xray_image_by_id(db, xray_image_id, doctor_id)
+    if xray_image is None:
+        raise XrayImageNotFoundError
+
+    if _is_legacy_local_path(xray_image.image_path):
+        raise XrayStorageError("Legacy local X-ray files cannot be signed")
+
+    expires_in = get_settings().supabase_signed_url_expire_seconds
+    try:
+        signed_url = create_signed_xray_url(
+            xray_image.image_path,
+            expires_in=expires_in,
+        )
+    except StorageError as exc:
+        raise XrayStorageError("Failed to create signed URL") from exc
+    return signed_url, expires_in

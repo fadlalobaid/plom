@@ -46,3 +46,10 @@ class XrayImageResponse(UUIDSchema, TimestampSchema):
     view_type: XrayViewType
     notes: str | None
     uploaded_at: datetime
+
+
+class XraySignedUrlResponse(BaseModel):
+    """Temporary signed URL for downloading a private X-ray object."""
+
+    signed_url: str
+    expires_in: int

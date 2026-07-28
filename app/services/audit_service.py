@@ -26,6 +26,10 @@ _SENSITIVE_DETAIL_KEYS = {
     "authorization",
     "secret_key",
     "secret",
+    "supabase_service_role_key",
+    "service_role_key",
+    "signed_url",
+    "signedURL",
 }
 
 

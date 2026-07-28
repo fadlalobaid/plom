@@ -79,12 +79,31 @@ class Settings(BaseSettings):
     )
     upload_dir: Path = Field(
         default=Path("uploads"),
-        description="Directory used to store uploaded files.",
+        description="Legacy local upload directory (X-rays now use Supabase Storage).",
     )
     max_xray_upload_bytes: int = Field(
         default=10 * 1024 * 1024,
         ge=1,
         description="Maximum allowed X-ray upload size in bytes.",
+    )
+    supabase_url: str = Field(
+        default="",
+        description="Supabase project URL used by the backend storage client.",
+    )
+    supabase_service_role_key: str = Field(
+        default="",
+        description="Supabase service role key for private Storage access (backend only).",
+    )
+    supabase_xray_bucket: str = Field(
+        default="xray-images",
+        min_length=1,
+        description="Private Supabase Storage bucket for chest X-ray files.",
+    )
+    supabase_signed_url_expire_seconds: int = Field(
+        default=3600,
+        ge=60,
+        le=86_400,
+        description="Default lifetime for signed X-ray download URLs in seconds.",
     )
     first_admin_full_name: str = Field(
         default="System Administrator",
@@ -118,6 +137,12 @@ class Settings(BaseSettings):
     def validate_production_settings(self) -> Self:
         if self.environment == "production" and self.secret_key == _INSECURE_SECRET_PLACEHOLDER:
             raise ValueError("SECRET_KEY must be set to a secure value in production.")
+        if self.environment == "production" and (
+            not self.supabase_url or not self.supabase_service_role_key
+        ):
+            raise ValueError(
+                "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in production."
+            )
         return self
 
     @property

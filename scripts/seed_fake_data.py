@@ -58,7 +58,7 @@ DOCTOR_PASSWORD = "sb30021"
 FAKE_DOCTOR_EMAIL_DOMAIN = "sb3.com"
 FAKE_DOCTOR_NATIONAL_ID_BASE = 8_000_000_000
 FAKE_PATIENT_NATIONAL_ID_BASE = 9_000_000_000
-FAKE_XRAY_PATH_PREFIX = "uploads/fake/seed_xray_"
+FAKE_XRAY_PATH_PREFIX = "fake/seed_xray_"
 
 SPECIALIZATIONS = (
     "Pulmonology",
@@ -211,9 +211,15 @@ def _seed_doctors(db: Session) -> int:
             specialization=SPECIALIZATIONS[(index - 1) % len(SPECIALIZATIONS)],
             date_of_birth=fake.date_of_birth(minimum_age=30, maximum_age=65),
             national_id=_fake_doctor_national_id(index),
-            certificate=f"CERT-FAKE-{index:05d}",
+            certificate=(
+                None
+                if index % 3 == 0
+                else fake.date_between(start_date="-25y", end_date="-1y")
+            ),
             phone_number=fake.numerify(text="09########"),
-            governorate=random.choice(list(SyrianGovernorate)),
+            governorate=random.choice(
+                [g for g in SyrianGovernorate if g is not SyrianGovernorate.OUTSIDE_SYRIA]
+            ),
             area=fake.city(),
             role=DoctorRole.DOCTOR,
             status=DoctorStatus.ACTIVE,
@@ -262,7 +268,9 @@ def _seed_patients(db: Session, doctors: list[Doctor]) -> int:
             date_of_birth=fake.date_of_birth(minimum_age=1, maximum_age=90),
             gender=gender,
             phone_number=fake.numerify(text="09########"),
-            governorate=random.choice(list(SyrianGovernorate)),
+            governorate=random.choice(
+                [g for g in SyrianGovernorate if g is not SyrianGovernorate.OUTSIDE_SYRIA]
+            ),
             area=fake.city(),
             national_id=national_id,
             created_by_doctor_id=doctor.id,

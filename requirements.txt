@@ -11,3 +11,4 @@ bcrypt>=4.0.0,<5.0.0
 python-multipart   #  لرفع الصور والملفات
 email-validator    #   للتحقق من البريد الإلكتروني
 Faker              #   لإنشاء بيانات وهمية للتطوير والاختبار
+supabase           #  لرفع ملفات الأشعة إلى Supabase Storage

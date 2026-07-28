@@ -20,7 +20,6 @@ _NATIONAL_ID_MAX_LENGTH = 50
 _AREA_MAX_LENGTH = 255
 _NOTES_MAX_LENGTH = 2000
 _SPECIALIZATION_MAX_LENGTH = 255
-_CERTIFICATE_MAX_LENGTH = 500
 
 
 def _empty_to_none(value: object) -> object:
@@ -155,6 +154,19 @@ def validate_optional_date_of_birth(value: object) -> date | None:
     return validate_date_of_birth(value)
 
 
+def validate_optional_certificate(value: object) -> date | None:
+    """Validate an optional certificate date (issue/graduation date)."""
+    if value is None:
+        return None
+    if not isinstance(value, date):
+        raise ValueError("Invalid certificate date")
+    if value > date.today():
+        raise ValueError("Certificate date cannot be in the future")
+    if value.year < 1900:
+        raise ValueError("Certificate date is invalid")
+    return value
+
+
 def validate_area(value: object) -> str:
     """Validate a required non-empty area value."""
     cleaned = normalize_required_text(value, field_name="Area")
@@ -200,14 +212,6 @@ def validate_optional_text(
     if len(normalized) > max_length:
         raise ValueError(f"{field_name} must be at most {max_length} characters")
     return normalized
-
-
-def validate_optional_certificate(value: object) -> str | None:
-    return validate_optional_text(
-        value,
-        field_name="Certificate",
-        max_length=_CERTIFICATE_MAX_LENGTH,
-    )
 
 
 def validate_optional_notes(value: object) -> str | None:
@@ -306,8 +310,7 @@ OptionalSpecialization = Annotated[
     AfterValidator(validate_optional_specialization),
 ]
 OptionalCertificate = Annotated[
-    str | None,
-    BeforeValidator(_empty_to_none),
+    date | None,
     AfterValidator(validate_optional_certificate),
 ]
 OptionalNotes = Annotated[

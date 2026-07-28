@@ -68,7 +68,7 @@ def run_validation_checks() -> None:
         specialization="Pulmonology",
         date_of_birth=date(1980, 1, 1),
         national_id="1234567890",
-        certificate="certificates/doctor-123.pdf",
+        certificate=date(2015, 6, 1),
         phone_number="0912345678",
         governorate=SyrianGovernorate.DAMASCUS,
         area="المزة",
@@ -94,7 +94,7 @@ def run_validation_checks() -> None:
             "specialization": "Pulmonology",
             "date_of_birth": date(1980, 1, 1),
             "national_id": "1234567890",
-            "certificate": "certificates/doctor-123.pdf",
+            "certificate": date(2015, 6, 1),
             "phone_number": "0912345678",
             "governorate": SyrianGovernorate.DAMASCUS,
             "area": "المزة",
@@ -115,6 +115,17 @@ def run_validation_checks() -> None:
         national_id="1234567890",
         governorate=SyrianGovernorate.ALEPPO,
         area="العزيزية",
+    )
+    PatientCreate(
+        first_name="Guest",
+        father_name="Parent",
+        mother_name="Mother",
+        last_name="Abroad",
+        date_of_birth=date(1992, 3, 10),
+        gender=Gender.FEMALE,
+        national_id="1234567891",
+        governorate=SyrianGovernorate.OUTSIDE_SYRIA,
+        area="بيروت",
     )
     PatientResponse.model_validate(
         {
@@ -145,7 +156,7 @@ def run_validation_checks() -> None:
             "id": xray_image_id,
             "patient_id": patient_id,
             "doctor_id": doctor_id,
-            "image_path": "uploads/xrays/sample.png",
+            "image_path": "2b31aaaa-bbbb-cccc-dddd-eeeeeeeeeeee/08aeaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/59cd....png",
             "taken_at": now,
             "result": "Normal",
             "view_type": XrayViewType.PA,

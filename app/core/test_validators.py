@@ -25,7 +25,7 @@ from app.schemas.patient import PatientCreate, PatientUpdate
 from app.services.xray_service import (
     UnsupportedXrayMediaTypeError,
     XrayFileTooLargeError,
-    save_xray_file,
+    read_validated_xray_bytes,
     validate_xray_file,
 )
 
@@ -190,7 +190,7 @@ class XrayValidationTests(unittest.TestCase):
                 headers={"content-type": "image/png"},
             )
             with self.assertRaises(XrayFileTooLargeError):
-                save_xray_file(upload)
+                read_validated_xray_bytes(upload)
         finally:
             settings.max_xray_upload_bytes = original_limit
 
