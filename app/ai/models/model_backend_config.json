@@ -1,0 +1,84 @@
+{
+    "model_name": "DenseNet121",
+    "model_file": "best_val_AUC.keras",
+    "input_size": [
+      224,
+      224
+    ],
+    "color_mode": "rgb",
+    "class_names": [
+      "Atelectasis",
+      "Cardiomegaly",
+      "Effusion",
+      "Infiltration",
+      "Mass",
+      "Nodule",
+      "Pneumonia",
+      "Pneumothorax",
+      "Consolidation",
+      "Edema",
+      "Emphysema",
+      "Fibrosis",
+      "Pleural_Thickening",
+      "Hernia"
+    ],
+    "threshold_method": "Youden J optimized on validation set",
+    "thresholds": {
+      "Atelectasis": 0.06274638324975967,
+      "Cardiomegaly": 0.030020469799637794,
+      "Effusion": 0.08236446231603622,
+      "Infiltration": 0.20956173539161682,
+      "Mass": 0.044354066252708435,
+      "Nodule": 0.07709438353776932,
+      "Pneumonia": 0.018701959401369095,
+      "Pneumothorax": 0.04057611525058746,
+      "Consolidation": 0.031601227819919586,
+      "Edema": 0.05651044845581055,
+      "Emphysema": 0.033349666744470596,
+      "Fibrosis": 0.03594151511788368,
+      "Pleural_Thickening": 0.03391958400607109,
+      "Hernia": 0.003605245379731059
+    },
+    "test_macro_roc_auc": 0.837251,
+    "test_micro_roc_auc": 0.870097,
+    "warning": "Screening/research output only; not a standalone medical diagnosis.",
+    "default_threshold_profile": "f1_balanced",
+    "threshold_profiles": {
+      "f1_balanced": {
+        "Atelectasis": 0.1486324518918991,
+        "Cardiomegaly": 0.14646941423416138,
+        "Effusion": 0.25039899349212646,
+        "Infiltration": 0.23425497114658356,
+        "Mass": 0.13413524627685547,
+        "Nodule": 0.2174040824174881,
+        "Pneumonia": 0.0754564180970192,
+        "Pneumothorax": 0.19587492942810059,
+        "Consolidation": 0.08746955543756485,
+        "Edema": 0.2010592818260193,
+        "Emphysema": 0.26010745763778687,
+        "Fibrosis": 0.22512716054916382,
+        "Pleural_Thickening": 0.14805196225643158,
+        "Hernia": 0.3377787470817566
+      },
+      "youden_screening": {
+        "Atelectasis": 0.06274638324975967,
+        "Cardiomegaly": 0.030020469799637794,
+        "Effusion": 0.08236446231603622,
+        "Infiltration": 0.20956173539161682,
+        "Mass": 0.044354066252708435,
+        "Nodule": 0.07709438353776932,
+        "Pneumonia": 0.018701959401369095,
+        "Pneumothorax": 0.04057611525058746,
+        "Consolidation": 0.031601227819919586,
+        "Edema": 0.05651044845581055,
+        "Emphysema": 0.033349666744470596,
+        "Fibrosis": 0.03594151511788368,
+        "Pleural_Thickening": 0.03391958400607109,
+        "Hernia": 0.003605245379731059
+      }
+    },
+    "threshold_profile_description": {
+      "f1_balanced": "Default balanced profile that maximizes F1 on validation data.",
+      "youden_screening": "High-sensitivity screening profile optimized with Youden J."
+    }
+  }

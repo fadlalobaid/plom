@@ -105,6 +105,29 @@ class Settings(BaseSettings):
         le=86_400,
         description="Default lifetime for signed X-ray download URLs in seconds.",
     )
+    ai_model_path: Path = Field(
+        default=Path("app/ai/models/DenseNet121_best_restored.keras"),
+        description=(
+            "Filesystem path to the DenseNet121 Keras model used for X-ray inference."
+        ),
+    )
+    ai_inference_enabled: bool = Field(
+        default=True,
+        description=(
+            "Enable real DenseNet121 sigmoid multilabel inference. Set false to force "
+            "the legacy Mock AI path."
+        ),
+    )
+    ai_decision_threshold: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "TEMPORARY global multilabel decision threshold used when "
+            "model_backend_config.json is absent. Prefer per-class thresholds from "
+            "training artifacts when available."
+        ),
+    )
     first_admin_full_name: str = Field(
         default="System Administrator",
         description="Full name used when seeding the first admin account.",
@@ -120,9 +143,9 @@ class Settings(BaseSettings):
         description="Password used when seeding the first admin account.",
     )
 
-    @field_validator("upload_dir", mode="before")
+    @field_validator("upload_dir", "ai_model_path", mode="before")
     @classmethod
-    def parse_upload_dir(cls, value: str | Path) -> Path:
+    def parse_path_settings(cls, value: str | Path) -> Path:
         return Path(value)
 
     @field_validator("cors_origins")

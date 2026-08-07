@@ -33,6 +33,10 @@ class StorageSignedUrlError(StorageError):
     """Raised when creating a signed URL fails."""
 
 
+class StorageDownloadError(StorageError):
+    """Raised when downloading an object from Supabase Storage fails."""
+
+
 @lru_cache
 def get_supabase_client() -> Client:
     """Return a cached Supabase client using the service role key."""
@@ -105,6 +109,28 @@ def delete_xray_file(storage_path: str) -> None:
     except Exception as exc:
         logger.exception("Failed to delete X-ray file from Supabase Storage")
         raise StorageDeleteError("Failed to delete X-ray file from storage") from exc
+
+
+def download_xray_file(storage_path: str) -> bytes:
+    """Download a private X-ray object and return raw bytes."""
+    if not storage_path or storage_path.startswith(("http://", "https://")):
+        raise StorageDownloadError("Invalid storage path")
+
+    settings = get_settings()
+    bucket = settings.supabase_xray_bucket
+
+    try:
+        client = get_supabase_client()
+        data = client.storage.from_(bucket).download(storage_path)
+    except StorageConfigurationError:
+        raise
+    except Exception as exc:
+        logger.exception("Failed to download X-ray file from Supabase Storage")
+        raise StorageDownloadError("Failed to download X-ray file from storage") from exc
+
+    if not data:
+        raise StorageDownloadError("Downloaded X-ray file is empty")
+    return bytes(data)
 
 
 def create_signed_xray_url(

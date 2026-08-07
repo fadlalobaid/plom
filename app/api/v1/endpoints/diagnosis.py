@@ -12,7 +12,7 @@ from app.models.diagnosis_result import DiagnosisResult
 from app.models.doctor import Doctor
 from app.models.enums import AuditAction, AuditEntityType
 from app.schemas.diagnosis_result import DiagnosisAnalysisRequest, DiagnosisResultResponse
-from app.services.ai_service import XrayImageFileNotFoundError
+from app.services.ai_service import AIServiceNotReadyError, XrayImageFileNotFoundError
 from app.services.audit_service import create_audit_log
 from app.services.diagnosis_service import (
     DiagnosisResultNotFoundError,
@@ -40,7 +40,7 @@ def analyze_xray_diagnosis(
     db: Annotated[Session, Depends(get_db)],
     current_doctor: Annotated[Doctor, Depends(get_current_active_doctor)],
 ) -> DiagnosisResult:
-    """Analyze a chest X-ray image and store a mock diagnosis result."""
+    """Analyze a chest X-ray image with DenseNet121 and store the diagnosis result."""
     try:
         diagnosis_result = analyze_and_create_diagnosis_result(
             db,
@@ -58,6 +58,11 @@ def analyze_xray_diagnosis(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         ) from exc
+    except AIServiceNotReadyError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(exc),
+        ) from exc
 
     create_audit_log(
         db,
@@ -70,6 +75,7 @@ def analyze_xray_diagnosis(
             "patient_id": str(payload.patient_id),
             "xray_image_id": str(payload.xray_image_id),
             "predicted_label": diagnosis_result.predicted_label,
+            "model_version": diagnosis_result.model_version,
         },
         request=request,
     )
