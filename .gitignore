@@ -8,6 +8,7 @@ __pycache__/
 uploads/
 # Large trained model binaries (use Git LFS or external storage for deployment)
 app/ai/models/*.keras
+app/ai/models/DenseNet121_best_restored.keras
 app/ai/models/*.h5
 app/ai/models/*.pt
 _train_extract.txt
