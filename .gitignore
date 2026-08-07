@@ -11,3 +11,11 @@ app/ai/models/*.keras
 app/ai/models/*.h5
 app/ai/models/*.pt
 _train_extract.txt
+.venv/
+.venv-wsl/
+venv/
+__pycache__/
+*.pyc
+.env
+.idea/
+.vscode/
