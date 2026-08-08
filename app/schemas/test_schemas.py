@@ -192,7 +192,11 @@ def run_validation_checks() -> None:
     assert "full_name" not in PatientResponse.model_fields
     assert "address" not in PatientCreate.model_fields
 
-    TokenResponse(access_token="token", must_change_password=True)
+    TokenResponse(
+        access_token="token",
+        refresh_token="refresh-token",
+        must_change_password=True,
+    )
     ChangePasswordRequest(
         current_password="temporary1",
         new_password="replacement2",

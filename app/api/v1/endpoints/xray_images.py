@@ -22,6 +22,7 @@ from app.schemas.xray_image import (
 from app.services.audit_service import create_audit_log
 from app.services.patient_service import PatientNotFoundError, get_patient_by_id
 from app.services.xray_service import (
+    InvalidXrayFileError,
     UnsupportedXrayMediaTypeError,
     XrayFileTooLargeError,
     XrayImageNotFoundError,
@@ -32,6 +33,11 @@ from app.services.xray_service import (
     list_xray_images_by_patient,
     update_xray_image,
     upload_and_create_xray_image,
+)
+from app.services.xray_validation_service import (
+    PUBLIC_INVALID_XRAY_DETAIL,
+    XrayValidationError,
+    XrayValidationReason,
 )
 
 router = APIRouter(
@@ -82,13 +88,28 @@ def upload_xray_image(
         )
     except UnsupportedXrayMediaTypeError as exc:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=PUBLIC_INVALID_XRAY_DETAIL,
         ) from exc
     except XrayFileTooLargeError as exc:
         raise HTTPException(
             status_code=status.HTTP_413_CONTENT_TOO_LARGE,
             detail=str(exc),
+        ) from exc
+    except XrayValidationError as exc:
+        if exc.reason == XrayValidationReason.VALIDATOR_UNAVAILABLE:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=exc.public_detail,
+            ) from exc
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=exc.public_detail,
+        ) from exc
+    except InvalidXrayFileError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc) or PUBLIC_INVALID_XRAY_DETAIL,
         ) from exc
     except XrayStorageError as exc:
         raise HTTPException(

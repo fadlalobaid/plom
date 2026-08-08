@@ -22,6 +22,8 @@ _SENSITIVE_DETAIL_KEYS = {
     "current_password",
     "new_password",
     "access_token",
+    "refresh_token",
+    "refresh_token_hash",
     "token",
     "authorization",
     "secret_key",

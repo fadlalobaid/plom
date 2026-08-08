@@ -22,11 +22,18 @@ class LoginRequest(BaseModel):
 
 
 class TokenResponse(BaseModel):
-    """JWT access token returned after successful login."""
+    """Access and refresh credentials returned after login or refresh."""
 
     access_token: str
+    refresh_token: str
     token_type: str = "bearer"
     must_change_password: bool
+
+
+class RefreshRequest(BaseModel):
+    """Opaque refresh token submitted to rotate a persistent session."""
+
+    refresh_token: str = Field(min_length=1, max_length=512)
 
 
 class ChangePasswordRequest(BaseModel):
@@ -54,3 +61,4 @@ class TokenPayload(BaseModel):
     sub: str
     role: str
     exp: int | None = None
+    sid: str | None = None

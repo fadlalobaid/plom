@@ -77,6 +77,14 @@ class Settings(BaseSettings):
         ge=1,
         description="Access token lifetime in minutes.",
     )
+    refresh_token_bytes: int = Field(
+        default=32,
+        ge=32,
+        description=(
+            "Entropy size in bytes for opaque refresh tokens "
+            "(32 bytes = 256 bits)."
+        ),
+    )
     upload_dir: Path = Field(
         default=Path("uploads"),
         description="Legacy local upload directory (X-rays now use Supabase Storage).",
@@ -126,6 +134,21 @@ class Settings(BaseSettings):
             "Legacy setting retained for compatibility only. Multilabel disease "
             "selection uses approved per-class thresholds from "
             "app/ai/backend_f1_thresholds.json and MUST NOT use this global value."
+        ),
+    )
+    xray_content_validation_enabled: bool = Field(
+        default=False,
+        description=(
+            "Enable strict dedicated Chest-Xray-vs-Not-Chest-Xray content validation. "
+            "When true, uploads fail closed if the validator model is unavailable. "
+            "Does NOT use the DenseNet121 disease model."
+        ),
+    )
+    xray_validator_model_path: Path = Field(
+        default=Path("app/ai/models/chest_xray_validator.keras"),
+        description=(
+            "Filesystem path to a dedicated Chest X-ray content validator model. "
+            "Separate from the DenseNet121 disease classifier."
         ),
     )
     first_admin_full_name: str = Field(

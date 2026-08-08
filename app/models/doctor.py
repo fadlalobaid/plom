@@ -69,11 +69,16 @@ class Doctor(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     diagnosis_results: Mapped[list[DiagnosisResult]] = relationship(
         back_populates="doctor",
     )
+    auth_sessions: Mapped[list[AuthSession]] = relationship(
+        back_populates="doctor",
+        cascade="all, delete-orphan",
+    )
 
     def __repr__(self) -> str:
         return f"Doctor(id={self.id!s}, email={self.email!r}, role={self.role.value})"
 
 
+from app.models.auth_session import AuthSession
 from app.models.diagnosis_result import DiagnosisResult
 from app.models.patient import Patient
 from app.models.xray_image import XrayImage

@@ -122,7 +122,11 @@ def update_doctor(db: Session, doctor_id: UUID, payload: DoctorUpdate) -> Doctor
         password = validate_password_strength(update_data.pop("password"))
         doctor.password_hash = get_password_hash(password)
         doctor.must_change_password = True
+        password_changed = True
+    else:
+        password_changed = False
 
+    previous_status = doctor.status
     for field, value in update_data.items():
         setattr(doctor, field, value)
 
@@ -132,6 +136,15 @@ def update_doctor(db: Session, doctor_id: UUID, payload: DoctorUpdate) -> Doctor
         db.rollback()
         _raise_doctor_integrity_error(exc)
     db.refresh(doctor)
+
+    if password_changed or (
+        previous_status != DoctorStatus.INACTIVE
+        and doctor.status == DoctorStatus.INACTIVE
+    ):
+        from app.services.auth_service import revoke_all_sessions
+
+        revoke_all_sessions(db, doctor.id)
+
     return doctor
 
 
@@ -152,6 +165,10 @@ def reset_doctor_password(
     doctor.must_change_password = True
     db.commit()
     db.refresh(doctor)
+
+    from app.services.auth_service import revoke_all_sessions
+
+    revoke_all_sessions(db, doctor.id)
     return doctor
 
 
@@ -164,4 +181,8 @@ def deactivate_doctor(db: Session, doctor_id: UUID) -> Doctor:
     doctor.status = DoctorStatus.INACTIVE
     db.commit()
     db.refresh(doctor)
+
+    from app.services.auth_service import revoke_all_sessions
+
+    revoke_all_sessions(db, doctor.id)
     return doctor

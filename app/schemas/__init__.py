@@ -6,6 +6,7 @@ from app.schemas.auth import (
     LoginRequest,
     LogoutResponse,
     PasswordChangeResponse,
+    RefreshRequest,
     TokenPayload,
     TokenResponse,
 )
@@ -40,6 +41,7 @@ __all__ = [
     "PatientCreate",
     "PatientResponse",
     "PatientUpdate",
+    "RefreshRequest",
     "TokenPayload",
     "TokenResponse",
     "XrayImageCreate",

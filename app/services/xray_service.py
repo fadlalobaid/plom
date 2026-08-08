@@ -25,23 +25,40 @@ from app.services.storage_service import (
     delete_xray_file,
     upload_xray_file,
 )
+from app.services.xray_validation_service import (
+    ALLOWED_XRAY_CONTENT_TYPES,
+    ALLOWED_XRAY_EXTENSIONS,
+    EXTENSION_CONTENT_TYPE_MAP,
+    XrayValidationError,
+    XrayValidationReason,
+    validate_xray_upload,
+)
 
 logger = logging.getLogger(__name__)
 
-ALLOWED_XRAY_EXTENSIONS = {".jpg", ".jpeg", ".png", ".dcm"}
-ALLOWED_XRAY_CONTENT_TYPES = {
-    "image/jpeg",
-    "image/png",
-    "application/dicom",
-    "application/octet-stream",
-}
-EXTENSION_CONTENT_TYPE_MAP = {
-    ".jpg": {"image/jpeg"},
-    ".jpeg": {"image/jpeg"},
-    ".png": {"image/png"},
-    ".dcm": {"application/dicom", "application/octet-stream"},
-}
 _READ_CHUNK_SIZE = 1024 * 1024
+
+# Re-export constants for existing imports/tests.
+__all__ = [
+    "ALLOWED_XRAY_CONTENT_TYPES",
+    "ALLOWED_XRAY_EXTENSIONS",
+    "EXTENSION_CONTENT_TYPE_MAP",
+    "InvalidXrayFileError",
+    "UnsupportedXrayMediaTypeError",
+    "XrayFileTooLargeError",
+    "XrayImageNotFoundError",
+    "XrayStorageError",
+    "XrayValidationError",
+    "create_xray_image",
+    "delete_xray_image",
+    "get_xray_image_by_id",
+    "get_xray_signed_url",
+    "list_xray_images_by_patient",
+    "read_validated_xray_bytes",
+    "update_xray_image",
+    "upload_and_create_xray_image",
+    "validate_xray_file",
+]
 
 
 class XrayImageNotFoundError(Exception):
@@ -66,37 +83,20 @@ class XrayStorageError(Exception):
 
 def validate_xray_file(filename: str | None, content_type: str | None) -> str:
     """Validate filename extension and MIME type, returning the normalized suffix."""
-    if not filename:
-        raise UnsupportedXrayMediaTypeError("Uploaded file must include a filename")
+    try:
+        from app.services.xray_validation_service import _validate_declared_type
 
-    extension = Path(filename).suffix.lower()
-    if extension not in ALLOWED_XRAY_EXTENSIONS:
-        raise UnsupportedXrayMediaTypeError(
-            "Unsupported file type. Allowed extensions: .jpg, .jpeg, .png, .dcm"
-        )
-
-    normalized_content_type = (content_type or "").split(";")[0].strip().lower()
-    if normalized_content_type not in ALLOWED_XRAY_CONTENT_TYPES:
-        raise UnsupportedXrayMediaTypeError(
-            "Unsupported media type. Allowed types: image/jpeg, image/png, application/dicom"
-        )
-
-    allowed_for_extension = EXTENSION_CONTENT_TYPE_MAP[extension]
-    if normalized_content_type not in allowed_for_extension:
-        raise UnsupportedXrayMediaTypeError(
-            "File extension does not match the declared media type"
-        )
-    return extension
+        return _validate_declared_type(filename, content_type)
+    except XrayValidationError as exc:
+        _raise_legacy_validation_error(exc)
+        raise  # pragma: no cover
 
 
 def read_validated_xray_bytes(file: UploadFile) -> tuple[bytes, str, str]:
-    """Validate type/size and return (file_bytes, extension, content_type)."""
-    extension = validate_xray_file(file.filename, file.content_type)
-    max_bytes = get_settings().max_xray_upload_bytes
-    content_type = (file.content_type or "").split(";")[0].strip().lower()
-
+    """Validate type/size/integrity/content gate and return file payload."""
     chunks: list[bytes] = []
     total_bytes = 0
+    max_bytes = get_settings().max_xray_upload_bytes
     try:
         while True:
             chunk = file.file.read(_READ_CHUNK_SIZE)
@@ -111,10 +111,33 @@ def read_validated_xray_bytes(file: UploadFile) -> tuple[bytes, str, str]:
     finally:
         file.file.seek(0)
 
-    if total_bytes == 0:
-        raise UnsupportedXrayMediaTypeError("Uploaded file is empty")
+    file_bytes = b"".join(chunks)
+    try:
+        result = validate_xray_upload(
+            filename=file.filename,
+            content_type=file.content_type,
+            file_bytes=file_bytes,
+        )
+    except XrayValidationError as exc:
+        _raise_legacy_validation_error(exc)
 
-    return b"".join(chunks), extension, content_type
+    return result.file_bytes, result.extension, result.content_type
+
+
+def _raise_legacy_validation_error(exc: XrayValidationError) -> None:
+    """Map validation-service errors to legacy xray_service exceptions."""
+    if exc.reason == XrayValidationReason.FILE_TOO_LARGE:
+        raise XrayFileTooLargeError(exc.message) from exc
+    if exc.reason == XrayValidationReason.INVALID_FILE_TYPE:
+        raise UnsupportedXrayMediaTypeError(exc.message) from exc
+    # Preserve structured reasons needed by the API layer (e.g. 503).
+    if exc.reason in {
+        XrayValidationReason.VALIDATOR_UNAVAILABLE,
+        XrayValidationReason.VALIDATOR_INFERENCE_ERROR,
+        XrayValidationReason.NOT_CHEST_XRAY,
+    }:
+        raise exc
+    raise InvalidXrayFileError(exc.public_detail) from exc
 
 
 def _is_legacy_local_path(image_path: str) -> bool:
@@ -204,10 +227,11 @@ def upload_and_create_xray_image(
     notes: str | None,
     taken_at: datetime | None,
 ) -> XrayImage:
-    """Validate, upload to Supabase Storage, then persist the X-ray record."""
+    """Validate gate first, then upload to Supabase Storage and persist."""
     if get_patient_by_id(db, patient_id, doctor_id) is None:
         raise PatientNotFoundError
 
+    # Validation happens BEFORE storage/DB so rejected files never remain stored.
     file_bytes, extension, content_type = read_validated_xray_bytes(file)
 
     try:

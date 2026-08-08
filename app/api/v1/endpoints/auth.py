@@ -13,20 +13,31 @@ from app.schemas.auth import (
     LoginRequest,
     LogoutResponse,
     PasswordChangeResponse,
+    RefreshRequest,
     TokenResponse,
 )
 from app.schemas.doctor import DoctorResponse
 from app.services.audit_service import create_audit_log
 from app.services.auth_service import (
     IncorrectCurrentPasswordError,
+    InvalidRefreshTokenError,
     PasswordReuseError,
     authenticate_doctor,
     change_doctor_password,
-    create_doctor_access_token,
+    extract_session_id,
+    issue_login_tokens,
+    refresh_auth_session,
     revoke_access_token,
+    revoke_auth_session,
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+def _client_ip(request: Request) -> str | None:
+    if request.client is None:
+        return None
+    return request.client.host
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -49,7 +60,12 @@ def login(
             detail="Inactive account",
         )
 
-    access_token = create_doctor_access_token(doctor)
+    access_token, refresh_token = issue_login_tokens(
+        db,
+        doctor,
+        user_agent=request.headers.get("user-agent"),
+        ip_address=_client_ip(request),
+    )
     create_audit_log(
         db,
         action=AuditAction.LOGIN,
@@ -61,6 +77,34 @@ def login(
     )
     return TokenResponse(
         access_token=access_token,
+        refresh_token=refresh_token,
+        must_change_password=doctor.must_change_password,
+    )
+
+
+@router.post("/refresh", response_model=TokenResponse)
+def refresh(
+    payload: RefreshRequest,
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+) -> TokenResponse:
+    """Rotate a refresh session and issue a new short-lived access token."""
+    try:
+        doctor, access_token, refresh_token = refresh_auth_session(
+            db,
+            payload.refresh_token,
+            ip_address=_client_ip(request),
+        )
+    except InvalidRefreshTokenError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from exc
+
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
         must_change_password=doctor.must_change_password,
     )
 
@@ -119,7 +163,10 @@ def logout(
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
     current_doctor: Annotated[Doctor, Depends(get_current_active_doctor)],
 ) -> LogoutResponse:
-    """Revoke the current access token and end the session."""
+    """Revoke the current access token and its persistent refresh session."""
+    session_id = extract_session_id(credentials.credentials)
+    if session_id is not None:
+        revoke_auth_session(db, session_id)
     revoke_access_token(credentials.credentials)
     create_audit_log(
         db,

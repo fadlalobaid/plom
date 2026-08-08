@@ -84,7 +84,12 @@ def validate_diagnosis_request(
     xray_image_id: UUID,
     doctor_id: UUID,
 ) -> XrayImage:
-    """Validate analysis input and return the linked X-ray image record."""
+    """Validate analysis input and return the linked X-ray image record.
+
+    Diagnosis accepts only previously registered X-rayImage rows owned by the
+    doctor. Clients cannot supply arbitrary storage paths. Seed placeholders
+    (fake/...) are rejected because they never passed the upload validation gate.
+    """
     if get_patient_by_id(db, patient_id, doctor_id) is None:
         raise InvalidDiagnosisRequestError("Patient not found")
 
@@ -95,6 +100,14 @@ def validate_diagnosis_request(
     if xray_image.patient_id != patient_id:
         raise InvalidDiagnosisRequestError(
             "X-ray image does not belong to the specified patient"
+        )
+
+    # Only images registered through the upload gate are eligible for analysis.
+    if not xray_image.image_path or not str(xray_image.image_path).strip():
+        raise InvalidDiagnosisRequestError("X-ray image storage path is missing")
+    if str(xray_image.image_path).startswith("fake/"):
+        raise InvalidDiagnosisRequestError(
+            "X-ray image is not a validated upload eligible for AI analysis"
         )
 
     existing_result = db.scalar(

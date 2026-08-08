@@ -1,22 +1,79 @@
-venv/
-__pycache__/
-*.pyc
-.env
-.idea/
-.vscode/
-.pytest_cache/
-uploads/
-# Large trained model binaries (use Git LFS or external storage for deployment)
-app/ai/models/*.keras
-app/ai/models/DenseNet121_best_restored.keras
-app/ai/models/*.h5
-app/ai/models/*.pt
-_train_extract.txt
+# =========================
+# Python virtual environments
+# =========================
 .venv/
 .venv-wsl/
 venv/
+env/
+
+# =========================
+# Python cache / compiled files
+# =========================
 __pycache__/
-*.pyc
+**/__pycache__/
+*.py[cod]
+*$py.class
+
+# =========================
+# Environment variables / secrets
+# =========================
 .env
+.env.*
+!.env.example
+
+# =========================
+# IDE / Editor
+# =========================
 .idea/
 .vscode/
+*.swp
+*.swo
+
+# =========================
+# Tests / coverage
+# =========================
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# =========================
+# Runtime / uploaded files
+# =========================
+uploads/
+*.log
+logs/
+
+# =========================
+# Build artifacts
+# =========================
+build/
+dist/
+*.egg-info/
+
+# =========================
+# OS files
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# AI model files
+# =========================
+# تجاهل أي نماذج تدريبية أو تجريبية
+app/ai/models/*.keras
+app/ai/models/*.h5
+app/ai/models/*.pt
+app/ai/models/*.pth
+
+# إبقاء نموذج PulmoScan الإنتاجي فقط داخل Git
+!app/ai/models/DenseNet121_best_restored.keras
+
+# =========================
+# Temporary training / extraction files
+# =========================
+_train_extract.txt
+*.tmp
+*.temp
