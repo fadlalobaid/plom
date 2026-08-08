@@ -52,12 +52,18 @@ def main() -> int:
     print("  source: train.ipynb preprocess_image")
 
     print("5) THRESHOLD STRATEGY")
+    print("  config_json_path:", DEFAULT_THRESHOLDS_CONFIG_PATH)
     print("  config_json_exists:", DEFAULT_THRESHOLDS_CONFIG_PATH.is_file())
     thresholds, strategy = resolve_thresholds()
     print("  strategy:", strategy)
     print("  sample_threshold:", thresholds[CLASS_NAMES[0]])
+    print("  pneumonia_threshold:", thresholds["Pneumonia"])
+    print("  uses_global_0_5:", all(value == 0.5 for value in thresholds.values()))
     print("  ai_inference_enabled:", settings.ai_inference_enabled)
-    print("  ai_decision_threshold:", settings.ai_decision_threshold)
+    print(
+        "  ai_decision_threshold (legacy unused for disease selection):",
+        settings.ai_decision_threshold,
+    )
 
     gates = {
         "model_file": path.is_file(),
@@ -66,7 +72,11 @@ def main() -> int:
         "sigmoid": act == "sigmoid",
         "class_names": len(CLASS_NAMES) == 14 and CLASS_NAMES[0] == "Atelectasis",
         "preprocessing_documented": TARGET_SIZE == (224, 224),
-        "threshold_validated_artifact": DEFAULT_THRESHOLDS_CONFIG_PATH.is_file(),
+        "threshold_validated_artifact": (
+            DEFAULT_THRESHOLDS_CONFIG_PATH.is_file()
+            and thresholds["Pneumonia"] == 0.0754564180970192
+            and not all(value == 0.5 for value in thresholds.values())
+        ),
     }
     print("=== GATE STATUS ===")
     for name, ok in gates.items():

@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "model_name": "DenseNet121",
+  "task": "multilabel_classification",
+  "input_shape": [224, 224, 3],
+  "threshold_profile": "f1_balanced",
+  "threshold_source": "Optimized on validation data only",
+  "class_names": [
+    "Atelectasis",
+    "Cardiomegaly",
+    "Effusion",
+    "Infiltration",
+    "Mass",
+    "Nodule",
+    "Pneumonia",
+    "Pneumothorax",
+    "Consolidation",
+    "Edema",
+    "Emphysema",
+    "Fibrosis",
+    "Pleural_Thickening",
+    "Hernia"
+  ],
+  "thresholds": {
+    "Atelectasis": 0.1486324518918991,
+    "Cardiomegaly": 0.1464694142341613,
+    "Effusion": 0.2503989934921264,
+    "Infiltration": 0.2342549711465835,
+    "Mass": 0.1341352462768554,
+    "Nodule": 0.2174040824174881,
+    "Pneumonia": 0.0754564180970192,
+    "Pneumothorax": 0.1958749294281005,
+    "Consolidation": 0.0874695554375648,
+    "Edema": 0.2010592818260193,
+    "Emphysema": 0.2601074576377868,
+    "Fibrosis": 0.2251271605491638,
+    "Pleural_Thickening": 0.1480519622564315,
+    "Hernia": 0.3377787470817566
+  },
+  "decision_rule": "positive if probability >= threshold",
+  "warning": "Research/screening support only; not a standalone medical diagnosis."
+}

@@ -188,9 +188,9 @@ def main() -> int:
         "target 224x224 RGB (custom preprocess_image, NOT densenet.preprocess_input)."
     )
     print(
-        "Threshold artifact model_backend_config.json is REQUIRED before replacing Mock AI."
+        "Threshold artifact app/ai/backend_f1_thresholds.json is REQUIRED for "
+        "approved per-class multilabel decisions (no global 0.5 fallback)."
     )
-    print("Mock AI remains active in app/services/ai_service.py.")
     return 0
 
 

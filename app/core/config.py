@@ -123,9 +123,9 @@ class Settings(BaseSettings):
         ge=0.0,
         le=1.0,
         description=(
-            "TEMPORARY global multilabel decision threshold used when "
-            "model_backend_config.json is absent. Prefer per-class thresholds from "
-            "training artifacts when available."
+            "Legacy setting retained for compatibility only. Multilabel disease "
+            "selection uses approved per-class thresholds from "
+            "app/ai/backend_f1_thresholds.json and MUST NOT use this global value."
         ),
     )
     first_admin_full_name: str = Field(

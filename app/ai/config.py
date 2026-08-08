@@ -38,24 +38,13 @@ MODEL_VERSION = "DenseNet121_best_restored"
 IMAGENET_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_STD = (0.229, 0.224, 0.225)
 
-# Optional JSON with per-class thresholds produced by training
-# (model_backend_config.json). When absent, a TEMPORARY global fallback of 0.5
-# is used and clearly marked in inference metadata.
+# Authoritative approved per-class F1 thresholds for production multilabel decisions.
+# Disease selection MUST use this artifact — never a global 0.5 fallback.
 DEFAULT_THRESHOLDS_CONFIG_PATH = (
-    Path(__file__).resolve().parent / "models" / "model_backend_config.json"
+    Path(__file__).resolve().parent / "backend_f1_thresholds.json"
 )
 
-# Temporary development fallback ONLY when no threshold artifact exists.
-# Training evaluation also inspected threshold=0.5 as a baseline.
-THRESHOLD_STRATEGY_TEMPORARY_GLOBAL = "temporary_global_threshold"
-THRESHOLD_STRATEGY_PER_CLASS_CONFIG = "per_class_from_model_backend_config"
-
-
-def get_temporary_global_threshold() -> float:
-    """Return the configured temporary global threshold (default 0.5)."""
-    from app.core.config import get_settings
-
-    return float(get_settings().ai_decision_threshold)
+THRESHOLD_STRATEGY_PER_CLASS_CONFIG = "per_class_from_backend_f1_thresholds:f1_balanced"
 
 # Marker used to embed full multilabel JSON inside DiagnosisResult.report_text
 # until a dedicated JSONB/child-table migration is approved.
