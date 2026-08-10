@@ -51,12 +51,12 @@ def create_doctor_account(
     except EmailAlreadyRegisteredError as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Email already exists",
+            detail="البريد الإلكتروني موجود بالفعل",
         ) from exc
     except DoctorNationalIdAlreadyRegisteredError as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="National ID already exists",
+            detail="رقم الهوية الوطنية موجود بالفعل",
         ) from exc
 
     create_audit_log(
@@ -94,7 +94,7 @@ def get_doctor_account(
     if doctor is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Doctor not found",
+            detail="الطبيب غير موجود",
         )
     return doctor
 
@@ -113,12 +113,12 @@ def reset_doctor_account_password(
     except DoctorNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Doctor not found",
+            detail="الطبيب غير موجود",
         ) from exc
     except InvalidDoctorPasswordResetError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Password reset is only available for doctor accounts",
+            detail="إعادة تعيين كلمة المرور متاح فقط لحسابات الطبيب",
         ) from exc
 
     create_audit_log(
@@ -156,17 +156,17 @@ def update_doctor_account(
     except DoctorNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Doctor not found",
+            detail="الطبيب غير موجود",
         ) from exc
     except EmailAlreadyRegisteredError as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Email already exists",
+            detail="البريد الإلكتروني موجود بالفعل",
         ) from exc
     except DoctorNationalIdAlreadyRegisteredError as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="National ID already exists",
+            detail="رقم الهوية الوطنية موجود بالفعل",
         ) from exc
     except InvalidDoctorPasswordResetError as exc:
         raise HTTPException(
@@ -213,7 +213,7 @@ def deactivate_doctor_account(
     except DoctorNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Doctor not found",
+            detail="الطبيب غير موجود",
         ) from exc
 
     create_audit_log(

@@ -65,7 +65,7 @@ def upload_xray_image(
     if get_patient_by_id(db, patient_id, current_doctor.id) is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Patient not found",
+            detail="المريض غير موجود",
         )
 
     try:
@@ -119,7 +119,7 @@ def upload_xray_image(
     except PatientNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Patient not found",
+            detail="المريض غير موجود",
         ) from exc
 
     create_audit_log(
@@ -151,7 +151,7 @@ def get_patient_xray_images(
     if get_patient_by_id(db, patient_id, current_doctor.id) is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Patient not found",
+            detail="المريض غير موجود",
         )
     return list_xray_images_by_patient(db, patient_id, current_doctor.id)
 
@@ -172,7 +172,7 @@ def get_xray_image_signed_url(
     except XrayImageNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="X-ray image not found",
+            detail="الصورة الشعاعية الغير موجودة",
         ) from exc
     except XrayStorageError as exc:
         raise HTTPException(
@@ -194,7 +194,7 @@ def get_xray_image_record(
     if xray_image is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="X-ray image not found",
+            detail="الصورة الشعاعية الغير موجودة",
         )
     return xray_image
 
@@ -212,7 +212,7 @@ def update_xray_image_record(
     except XrayImageNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="X-ray image not found",
+            detail="الصورة الشعاعية الغير موجودة",
         ) from exc
 
 
@@ -229,7 +229,7 @@ def delete_xray_image_record(
     except XrayImageNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="X-ray image not found",
+            detail="الصورة الشعاعية الغير موجودة",
         ) from exc
     except XrayStorageError as exc:
         raise HTTPException(

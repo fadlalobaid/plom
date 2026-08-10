@@ -53,7 +53,7 @@ def create_patient_record(
     except NationalIdAlreadyRegisteredError as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="National ID already exists",
+            detail="رقم الهوية الوطنية موجود بالفعل",
         ) from exc
 
     create_audit_log(
@@ -106,7 +106,7 @@ def get_patient_record(
     if patient is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Patient not found",
+            detail="المريض غير موجود",
         )
     return patient
 
@@ -122,7 +122,7 @@ def get_patient_medical_record(
     if patient is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Patient not found",
+            detail="المريض غير موجود",
         )
 
     xray_images = list_xray_images_by_patient(db, patient_id, current_doctor.id)
@@ -161,7 +161,7 @@ def update_patient_record(
     except NationalIdAlreadyRegisteredError as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="National ID already exists",
+            detail="رقم الهوية الوطنية موجود بالفعل",
         ) from exc
 
     create_audit_log(
@@ -192,7 +192,7 @@ def delete_patient_record(
     except PatientNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Patient not found",
+            detail="المريض غير موجود",
         ) from exc
 
     create_audit_log(

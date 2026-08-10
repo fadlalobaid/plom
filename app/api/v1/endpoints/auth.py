@@ -50,14 +50,14 @@ def login(
     if doctor is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
+            detail="البريد الإلكتروني أو كلمة المرور غير صحيحة",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
     if doctor.status != DoctorStatus.ACTIVE:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Inactive account",
+            detail="الحساب غير نشط الرجاء الاتصال بالمدير",
         )
 
     access_token, refresh_token = issue_login_tokens(
@@ -98,7 +98,7 @@ def refresh(
     except InvalidRefreshTokenError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
+            detail="لا يمكن التحقق من الاعتمادات",
             headers={"WWW-Authenticate": "Bearer"},
         ) from exc
 
@@ -136,12 +136,12 @@ def change_password(
     except IncorrectCurrentPasswordError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Current password is incorrect",
+            detail="كلمة المرور الحالية غير صحيحة",
         ) from exc
     except PasswordReuseError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="New password must be different from the current password",
+            detail="كلمة المرور الجديدة يجب أن تكون مختلفة عن كلمة المرور الحالية",
         ) from exc
     revoke_access_token(credentials.credentials)
     create_audit_log(

@@ -92,7 +92,7 @@ def get_patient_diagnosis_results(
     if get_patient_by_id(db, patient_id, current_doctor.id) is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Patient not found",
+            detail="المريض غير موجود",
         )
     return list_diagnosis_results_by_patient(db, patient_id, current_doctor.id)
 
@@ -107,7 +107,7 @@ def get_xray_image_diagnosis_results(
     if get_xray_image_by_id(db, xray_image_id, current_doctor.id) is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="X-ray image not found",
+            detail="الصورة الشعاعية الغير موجودة",
         )
     return list_diagnosis_results_by_xray_image(db, xray_image_id, current_doctor.id)
 
@@ -123,7 +123,7 @@ def get_diagnosis_result_record(
     if diagnosis_result is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Diagnosis result not found",
+            detail="نتيجة التشخيص غير موجودة",
         )
     return diagnosis_result
 
@@ -140,5 +140,5 @@ def delete_diagnosis_result_record(
     except DiagnosisResultNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Diagnosis result not found",
+            detail="نتيجة التشخيص غير موجودة",
         ) from exc

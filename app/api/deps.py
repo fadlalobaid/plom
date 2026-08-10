@@ -26,7 +26,7 @@ def get_current_doctor(
     if payload is None or is_access_token_revoked(payload):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
+            detail="لا يمكن التحقق من الاعتمادات",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -34,7 +34,7 @@ def get_current_doctor(
     if subject is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
+            detail="لا يمكن التحقق من الاعتمادات",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -43,7 +43,7 @@ def get_current_doctor(
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
+            detail="لا يمكن التحقق من الاعتمادات",    
             headers={"WWW-Authenticate": "Bearer"},
         ) from exc
 
@@ -51,7 +51,7 @@ def get_current_doctor(
     if doctor is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
+            detail="لا يمكن التحقق من الاعتمادات",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -65,7 +65,7 @@ def get_current_active_doctor(
     if current_doctor.status != DoctorStatus.ACTIVE:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Inactive account",
+            detail="الحساب غير نشط الرجاء الاتصال بالمدير",
         )
     return current_doctor
 
@@ -80,7 +80,7 @@ def require_password_change_completed(
     ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Password change required",
+            detail="الرجاء تغيير كلمة المرور",
         )
     return current_doctor
 
@@ -92,6 +92,6 @@ def require_admin(
     if current_doctor.role != DoctorRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin privileges required",
+            detail="الصلاحيات الإدارية مطلوبة",
         )
     return current_doctor
