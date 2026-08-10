@@ -56,7 +56,7 @@ class Doctor(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     must_change_password: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
-        default=True,
+        default=False,
         server_default=false(),
     )
 

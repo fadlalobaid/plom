@@ -46,13 +46,13 @@ class ChangePasswordRequest(BaseModel):
 class PasswordChangeResponse(BaseModel):
     """Response returned after changing or resetting a password."""
 
-    message: str = "Password changed successfully"
+    message: str = "تم تغيير كلمة المرور بنجاح"
 
 
 class LogoutResponse(BaseModel):
     """Response returned after a successful logout."""
 
-    message: str = "Logged out successfully"
+    message: str = "تم تسجيل الخروج بنجاح"
 
 
 class TokenPayload(BaseModel):
