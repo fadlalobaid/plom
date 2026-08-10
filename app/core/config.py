@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     )
 
     project_name: str = Field(
-        default="PulmoScan Backend API",
+        default="NAFAS Backend API",
         description="Display name of the API.",
     )
     project_description: str = Field(

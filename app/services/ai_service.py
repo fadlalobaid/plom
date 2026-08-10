@@ -31,7 +31,7 @@ class AIServiceNotReadyError(Exception):
 def analyze_xray_image(image_path: str) -> dict[str, str | Decimal | None]:
     """Analyze a chest X-ray and return a DiagnosisResult-compatible payload."""
     if not image_path or not image_path.strip():
-        raise XrayImageFileNotFoundError("X-ray image storage path is missing")
+        raise XrayImageFileNotFoundError("مسار تخزين صور الأشعة السينية مفقود.")
 
     settings = get_settings()
     if not settings.ai_inference_enabled:
@@ -43,16 +43,16 @@ def analyze_xray_image(image_path: str) -> dict[str, str | Decimal | None]:
 
         result = predict_xray(image_bytes=image_bytes)
     except ImageMissingError as exc:
-        raise XrayImageFileNotFoundError("X-ray image file was not found") from exc
+        raise XrayImageFileNotFoundError("الصورة الشعاعية الغير موجودة") from exc
     except StorageError as exc:
         logger.exception("Storage failure during AI analysis")
-        raise XrayImageFileNotFoundError("X-ray image could not be retrieved from storage") from exc
+        raise XrayImageFileNotFoundError("لا يمكن الحصول على الصورة الشعاعية من التخزين") from exc
     except AIError as exc:
         logger.exception("AI inference failure")
-        raise AIServiceNotReadyError("AI analysis failed") from exc
+        raise AIServiceNotReadyError("فشل التشخيص ") from exc
     except Exception as exc:  # noqa: BLE001
-        logger.exception("Unexpected AI analysis failure")
-        raise AIServiceNotReadyError("AI analysis failed") from exc
+        logger.exception("فشل التشخيص")
+        raise AIServiceNotReadyError("فشل التشخيص") from exc
 
     confidence = result["confidence_score"]
     if not isinstance(confidence, Decimal):
@@ -82,7 +82,7 @@ def _resolve_image_bytes(image_path: str) -> bytes:
     # Fake seed markers are DB-only placeholders and are not stored in Supabase.
     if image_path.startswith("fake/"):
         raise XrayImageFileNotFoundError(
-            "Seed placeholder X-ray path has no stored image bytes"
+            "مسار صورة الأشعة السينية المؤقتة لا يحتوي على بايتات الصورة المخزنة"
         )
 
     return download_xray_file(image_path)
@@ -95,7 +95,7 @@ def _mock_analyze_xray_image() -> dict[str, str | Decimal | None]:
         "confidence_score": Decimal("0.87000"),
         "model_version": "mock-ai-v1",
         "report_text": (
-            "Temporary mock diagnosis: no significant abnormal findings detected "
+            "التشخيص المؤقت: لم يتم الكشف عن أي تحريف غير معتاد في الصورة الشعاعية"
             "in the chest X-ray image."
         ),
         "visual_map_path": None,

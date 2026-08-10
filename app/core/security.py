@@ -15,13 +15,13 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 def validate_password_strength(password: str) -> str:
     """Validate the shared password policy and return the accepted password."""
     if not 8 <= len(password) <= 128:
-        raise ValueError("Password must be between 8 and 128 characters")
+        raise ValueError("   المرور يجب أن تكون بين 8 و 128 حرف")
     if len(password.encode("utf-8")) > 72:
-        raise ValueError("Password must not exceed 72 UTF-8 bytes")
+        raise ValueError("المرور يجب أن لا يتجاوز 72 بايت UTF-8")
     if not any(character.isalpha() for character in password):
-        raise ValueError("Password must contain at least one letter")
+        raise ValueError("المرور يجب أن يحتوي على على الأقل حرف واحد")
     if not any(character.isdigit() for character in password):
-        raise ValueError("Password must contain at least one number")
+        raise ValueError("المرور يجب أن يحتوي على على الأقل رقم واحد")
     return password
 
 
