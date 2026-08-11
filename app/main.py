@@ -15,7 +15,7 @@ app = FastAPI(
     description=settings.project_description,
     version=settings.project_version,
     debug=settings.debug,
-    # Disable interactive API docs in deployed environments if needed:
+      # Disable interactive API docs in deployed environments if needed:
     # docs_url=None,
     # redoc_url=None,
     # openapi_url=None,

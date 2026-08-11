@@ -7,6 +7,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
+from app.core import messages
 from app.core.security import decode_access_token
 from app.db.session import get_db
 from app.models.doctor import Doctor
@@ -26,7 +27,7 @@ def get_current_doctor(
     if payload is None or is_access_token_revoked(payload):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="لا يمكن التحقق من الاعتمادات",
+            detail=messages.INVALID_SESSION,
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -34,7 +35,7 @@ def get_current_doctor(
     if subject is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="لا يمكن التحقق من الاعتمادات",
+            detail=messages.INVALID_SESSION,
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -43,7 +44,7 @@ def get_current_doctor(
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="لا يمكن التحقق من الاعتمادات",    
+            detail=messages.INVALID_SESSION,
             headers={"WWW-Authenticate": "Bearer"},
         ) from exc
 
@@ -51,7 +52,7 @@ def get_current_doctor(
     if doctor is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="لا يمكن التحقق من الاعتمادات",
+            detail=messages.INVALID_SESSION,
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -65,7 +66,7 @@ def get_current_active_doctor(
     if current_doctor.status != DoctorStatus.ACTIVE:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="الحساب غير نشط الرجاء الاتصال بالمدير",
+            detail=messages.INACTIVE_ACCOUNT,
         )
     return current_doctor
 
@@ -80,7 +81,7 @@ def require_password_change_completed(
     ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="الرجاء تغيير كلمة المرور",
+            detail=messages.PASSWORD_CHANGE_REQUIRED,
         )
     return current_doctor
 
@@ -92,6 +93,6 @@ def require_admin(
     if current_doctor.role != DoctorRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="الصلاحيات الإدارية مطلوبة",
+            detail=messages.ADMIN_REQUIRED,
         )
     return current_doctor

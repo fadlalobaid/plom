@@ -11,6 +11,7 @@ from fastapi import UploadFile
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from app.core import messages
 from app.core.config import get_settings
 from app.models.enums import XrayViewType
 from app.models.patient import Patient
@@ -104,9 +105,7 @@ def read_validated_xray_bytes(file: UploadFile) -> tuple[bytes, str, str]:
                 break
             total_bytes += len(chunk)
             if total_bytes > max_bytes:
-                raise XrayFileTooLargeError(
-                    f"File exceeds the maximum allowed size of {max_bytes} bytes"
-                )
+                raise XrayFileTooLargeError(messages.xray_file_too_large(max_bytes))
             chunks.append(chunk)
     finally:
         file.file.seek(0)
@@ -127,9 +126,9 @@ def read_validated_xray_bytes(file: UploadFile) -> tuple[bytes, str, str]:
 def _raise_legacy_validation_error(exc: XrayValidationError) -> None:
     """Map validation-service errors to legacy xray_service exceptions."""
     if exc.reason == XrayValidationReason.FILE_TOO_LARGE:
-        raise XrayFileTooLargeError(exc.message) from exc
+        raise XrayFileTooLargeError(exc.public_detail) from exc
     if exc.reason == XrayValidationReason.INVALID_FILE_TYPE:
-        raise UnsupportedXrayMediaTypeError(exc.message) from exc
+        raise UnsupportedXrayMediaTypeError(exc.public_detail) from exc
     # Preserve structured reasons needed by the API layer (e.g. 503).
     if exc.reason in {
         XrayValidationReason.VALIDATOR_UNAVAILABLE,
@@ -243,9 +242,9 @@ def upload_and_create_xray_image(
             content_type=content_type,
         )
     except StorageUploadError as exc:
-        raise XrayStorageError("Failed to upload X-ray file to storage") from exc
+        raise XrayStorageError(messages.XRAY_STORAGE_UNAVAILABLE) from exc
     except StorageError as exc:
-        raise XrayStorageError("X-ray storage is unavailable") from exc
+        raise XrayStorageError(messages.XRAY_STORAGE_UNAVAILABLE) from exc
 
     try:
         return create_xray_image(
@@ -299,9 +298,9 @@ def delete_xray_image(db: Session, xray_image_id: UUID, doctor_id: UUID) -> str:
     try:
         _remove_stored_xray_file(storage_path)
     except StorageDeleteError as exc:
-        raise XrayStorageError("Failed to delete X-ray file from storage") from exc
+        raise XrayStorageError(messages.XRAY_STORAGE_DELETE_FAILED) from exc
     except StorageError as exc:
-        raise XrayStorageError("X-ray storage is unavailable") from exc
+        raise XrayStorageError(messages.XRAY_STORAGE_UNAVAILABLE) from exc
 
     db.delete(xray_image)
     db.commit()
@@ -319,7 +318,7 @@ def get_xray_signed_url(
         raise XrayImageNotFoundError
 
     if _is_legacy_local_path(xray_image.image_path):
-        raise XrayStorageError("Legacy local X-ray files cannot be signed")
+        raise XrayStorageError(messages.XRAY_LEGACY_LOCAL_NOT_SIGNABLE)
 
     expires_in = get_settings().supabase_signed_url_expire_seconds
     try:
@@ -328,5 +327,5 @@ def get_xray_signed_url(
             expires_in=expires_in,
         )
     except StorageError as exc:
-        raise XrayStorageError("Failed to create signed URL") from exc
+        raise XrayStorageError(messages.XRAY_SIGNED_URL_FAILED) from exc
     return signed_url, expires_in

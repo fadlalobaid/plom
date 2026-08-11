@@ -7,6 +7,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
+from app.core import messages
 from app.core.security import get_password_hash, verify_password
 from app.db.base import Base
 from app.db.session import get_db
@@ -104,7 +105,7 @@ class ForcedPasswordChangeTests(unittest.TestCase):
         for path in protected_paths:
             response = self.client.get(path, headers=headers)
             self.assertEqual(response.status_code, 403)
-            self.assertEqual(response.json()["detail"], "Password change required")
+            self.assertEqual(response.json()["detail"], messages.PASSWORD_CHANGE_REQUIRED)
 
     def test_change_password_rejects_incorrect_current_password(self) -> None:
         token = self.login(self.doctor.email, TEMPORARY_PASSWORD)["access_token"]
@@ -118,7 +119,7 @@ class ForcedPasswordChangeTests(unittest.TestCase):
         )
 
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()["detail"], "Current password is incorrect")
+        self.assertEqual(response.json()["detail"], messages.CURRENT_PASSWORD_INCORRECT)
 
     def test_flagged_doctor_can_logout(self) -> None:
         token = self.login(self.doctor.email, TEMPORARY_PASSWORD)["access_token"]
@@ -143,7 +144,7 @@ class ForcedPasswordChangeTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(
             response.json()["detail"],
-            "New password must be different from the current password",
+            messages.PASSWORD_REUSE_NOT_ALLOWED,
         )
 
     def test_successful_change_clears_flag_and_unlocks_patients(self) -> None:
@@ -159,7 +160,7 @@ class ForcedPasswordChangeTests(unittest.TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["message"], "Password changed successfully")
+        self.assertEqual(response.json()["message"], messages.PASSWORD_CHANGED)
         self.db.expire_all()
         updated_doctor = self.db.get(Doctor, self.doctor.id)
         assert updated_doctor is not None
@@ -188,7 +189,7 @@ class ForcedPasswordChangeTests(unittest.TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["message"], "Password reset successfully")
+        self.assertEqual(response.json()["message"], messages.PASSWORD_RESET)
         self.db.expire_all()
         updated_doctor = self.db.get(Doctor, self.doctor.id)
         assert updated_doctor is not None
@@ -201,14 +202,14 @@ class ForcedPasswordChangeTests(unittest.TestCase):
             "/api/v1/doctors/",
             headers=self.authorization(admin_token),
             json={
-                "full_name": "New Doctor",
+                "full_name": "احمد الاحمد",
                 "email": "new-doctor@example.com",
                 "password": "NewDoctor1",
                 "specialization": "Pulmonology",
                 "date_of_birth": "1992-06-15",
                 "phone_number": "0933333333",
-                "governorate": "دمشق",
-                "area": "المزة",
+                "governorate": "ادلب",
+                "area": "جسر الشغور",
             },
         )
 
@@ -227,7 +228,7 @@ class ForcedPasswordChangeTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(
             response.json()["detail"],
-            "Password reset is only available for doctor accounts",
+            messages.PASSWORD_RESET_DOCTORS_ONLY,
         )
 
 

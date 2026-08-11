@@ -142,12 +142,21 @@ def predict_xray(
     predictions = apply_per_class_thresholds(all_probabilities, thresholds)
 
     if predictions:
-        # Backward-compatible summary fields only — NOT the multilabel selection rule.
-        predicted_label = str(predictions[0]["label"])
-        confidence_score = float(predictions[0]["probability"])
+        # Backward-compatible summary fields: highest-probability positive label.
+        # Full multilabel output remains in predictions / embedded JSON.
+        top_prediction = max(
+            predictions,
+            key=lambda item: float(item["probability"]),
+        )
+        predicted_label = str(top_prediction["label"])
+        confidence_score = float(top_prediction["probability"])
         findings_text = ", ".join(
             f"{item['label']} ({float(item['probability']) * 100:.1f}%)"
-            for item in predictions
+            for item in sorted(
+                predictions,
+                key=lambda item: float(item["probability"]),
+                reverse=True,
+            )
         )
         report_text = (
             "AI-assisted analysis / model output detected: "

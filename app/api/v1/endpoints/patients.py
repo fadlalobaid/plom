@@ -7,11 +7,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_active_doctor, require_password_change_completed
+from app.core import messages
+from app.core.validators import SearchQuery
 from app.db.session import get_db
 from app.models.doctor import Doctor
 from app.models.enums import AuditAction, AuditEntityType
 from app.models.patient import Patient
-from app.core.validators import SearchQuery
 from app.schemas.diagnosis_result import DiagnosisResultResponse
 from app.schemas.patient import (
     PatientCreate,
@@ -53,7 +54,7 @@ def create_patient_record(
     except NationalIdAlreadyRegisteredError as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="رقم الهوية الوطنية موجود بالفعل",
+            detail=messages.NATIONAL_ID_ALREADY_EXISTS,
         ) from exc
 
     create_audit_log(
@@ -106,7 +107,7 @@ def get_patient_record(
     if patient is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="المريض غير موجود",
+            detail=messages.PATIENT_NOT_FOUND,
         )
     return patient
 
@@ -122,7 +123,7 @@ def get_patient_medical_record(
     if patient is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="المريض غير موجود",
+            detail=messages.PATIENT_NOT_FOUND,
         )
 
     xray_images = list_xray_images_by_patient(db, patient_id, current_doctor.id)
@@ -156,12 +157,12 @@ def update_patient_record(
     except PatientNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Patient not found",
+            detail=messages.PATIENT_NOT_FOUND,
         ) from exc
     except NationalIdAlreadyRegisteredError as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="رقم الهوية الوطنية موجود بالفعل",
+            detail=messages.NATIONAL_ID_ALREADY_EXISTS,
         ) from exc
 
     create_audit_log(
@@ -192,7 +193,7 @@ def delete_patient_record(
     except PatientNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="المريض غير موجود",
+            detail=messages.PATIENT_NOT_FOUND,
         ) from exc
 
     create_audit_log(

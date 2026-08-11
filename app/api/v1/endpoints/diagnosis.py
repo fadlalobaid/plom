@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_active_doctor, require_password_change_completed
+from app.core import messages
 from app.db.session import get_db
 from app.models.diagnosis_result import DiagnosisResult
 from app.models.doctor import Doctor
@@ -56,12 +57,12 @@ def analyze_xray_diagnosis(
     except XrayImageFileNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
+            detail=str(exc) or messages.XRAY_UNAVAILABLE_FOR_ANALYSIS,
         ) from exc
     except AIServiceNotReadyError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=str(exc),
+            detail=str(exc) or messages.DIAGNOSIS_FAILED,
         ) from exc
 
     create_audit_log(
@@ -92,7 +93,7 @@ def get_patient_diagnosis_results(
     if get_patient_by_id(db, patient_id, current_doctor.id) is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="المريض غير موجود",
+            detail=messages.PATIENT_NOT_FOUND,
         )
     return list_diagnosis_results_by_patient(db, patient_id, current_doctor.id)
 
@@ -107,7 +108,7 @@ def get_xray_image_diagnosis_results(
     if get_xray_image_by_id(db, xray_image_id, current_doctor.id) is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="الصورة الشعاعية الغير موجودة",
+            detail=messages.XRAY_NOT_FOUND,
         )
     return list_diagnosis_results_by_xray_image(db, xray_image_id, current_doctor.id)
 
@@ -123,7 +124,7 @@ def get_diagnosis_result_record(
     if diagnosis_result is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="نتيجة التشخيص غير موجودة",
+            detail=messages.DIAGNOSIS_NOT_FOUND,
         )
     return diagnosis_result
 
@@ -140,5 +141,5 @@ def delete_diagnosis_result_record(
     except DiagnosisResultNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="نتيجة التشخيص غير موجودة",
+            detail=messages.DIAGNOSIS_NOT_FOUND,
         ) from exc

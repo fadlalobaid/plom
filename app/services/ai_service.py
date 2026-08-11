@@ -14,6 +14,7 @@ from decimal import Decimal
 from pathlib import Path
 
 from app.ai.exceptions import AIError, ImageMissingError
+from app.core import messages
 from app.core.config import get_settings
 from app.services.storage_service import StorageError, download_xray_file
 
@@ -31,7 +32,7 @@ class AIServiceNotReadyError(Exception):
 def analyze_xray_image(image_path: str) -> dict[str, str | Decimal | None]:
     """Analyze a chest X-ray and return a DiagnosisResult-compatible payload."""
     if not image_path or not image_path.strip():
-        raise XrayImageFileNotFoundError("مسار تخزين صور الأشعة السينية مفقود.")
+        raise XrayImageFileNotFoundError(messages.XRAY_STORAGE_PATH_MISSING)
 
     settings = get_settings()
     if not settings.ai_inference_enabled:
@@ -43,16 +44,16 @@ def analyze_xray_image(image_path: str) -> dict[str, str | Decimal | None]:
 
         result = predict_xray(image_bytes=image_bytes)
     except ImageMissingError as exc:
-        raise XrayImageFileNotFoundError("الصورة الشعاعية الغير موجودة") from exc
+        raise XrayImageFileNotFoundError(messages.XRAY_NOT_FOUND) from exc
     except StorageError as exc:
         logger.exception("Storage failure during AI analysis")
-        raise XrayImageFileNotFoundError("لا يمكن الحصول على الصورة الشعاعية من التخزين") from exc
+        raise XrayImageFileNotFoundError(messages.XRAY_UNAVAILABLE_FOR_ANALYSIS) from exc
     except AIError as exc:
         logger.exception("AI inference failure")
-        raise AIServiceNotReadyError("فشل التشخيص ") from exc
+        raise AIServiceNotReadyError(messages.DIAGNOSIS_FAILED) from exc
     except Exception as exc:  # noqa: BLE001
-        logger.exception("فشل التشخيص")
-        raise AIServiceNotReadyError("فشل التشخيص") from exc
+        logger.exception("AI inference unexpected failure")
+        raise AIServiceNotReadyError(messages.DIAGNOSIS_FAILED) from exc
 
     confidence = result["confidence_score"]
     if not isinstance(confidence, Decimal):
@@ -81,9 +82,7 @@ def _resolve_image_bytes(image_path: str) -> bytes:
 
     # Fake seed markers are DB-only placeholders and are not stored in Supabase.
     if image_path.startswith("fake/"):
-        raise XrayImageFileNotFoundError(
-            "مسار صورة الأشعة السينية المؤقتة لا يحتوي على بايتات الصورة المخزنة"
-        )
+        raise XrayImageFileNotFoundError(messages.XRAY_NOT_ELIGIBLE_FOR_ANALYSIS)
 
     return download_xray_file(image_path)
 
@@ -94,10 +93,7 @@ def _mock_analyze_xray_image() -> dict[str, str | Decimal | None]:
         "predicted_label": "normal",
         "confidence_score": Decimal("0.87000"),
         "model_version": "mock-ai-v1",
-        "report_text": (
-            "التشخيص المؤقت: لم يتم الكشف عن أي تحريف غير معتاد في الصورة الشعاعية"
-            "in the chest X-ray image."
-        ),
+        "report_text": "تحليل تجريبي: لم يتم اكتشاف ملاحظات غير معتادة في صورة الأشعة.",
         "visual_map_path": None,
     }
 

@@ -228,6 +228,29 @@ class InferenceWiringTests(unittest.TestCase):
         self.assertEqual(result["predicted_label"], "")
         self.assertNotIn(result["predicted_label"], {"No Finding", "Normal", "Healthy"})
 
+    def test_summary_uses_highest_probability_positive(self) -> None:
+        """predicted_label/confidence_score follow the top positive, not CLASS_NAMES order."""
+        fake_batch = np.zeros((1, 224, 224, 3), dtype=np.float32)
+        # Atelectasis (index 0) positive but lower; Pneumonia (index 6) higher.
+        fake_probs = np.zeros((14,), dtype=np.float32)
+        fake_probs[0] = 0.55  # Atelectasis >= its threshold in approved config
+        fake_probs[6] = 0.92  # Pneumonia
+        mock_model = MagicMock()
+        mock_model.output_shape = (None, 14)
+        mock_model.predict.return_value = fake_probs
+
+        with (
+            patch("app.ai.inference.preprocess_xray", return_value=fake_batch),
+            patch("app.ai.inference.get_model", return_value=mock_model),
+        ):
+            result = predict_xray(image_bytes=b"fake-bytes")
+
+        labels = [item["label"] for item in result["predictions"]]
+        self.assertIn("Atelectasis", labels)
+        self.assertIn("Pneumonia", labels)
+        self.assertEqual(result["predicted_label"], "Pneumonia")
+        self.assertAlmostEqual(result["confidence_score"], 0.92, places=5)
+
 
 if __name__ == "__main__":
     unittest.main()

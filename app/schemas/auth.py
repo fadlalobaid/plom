@@ -4,6 +4,7 @@ from typing import Annotated
 
 from pydantic import AfterValidator, BaseModel, Field
 
+from app.core import messages
 from app.core.security import validate_password_strength
 from app.core.validators import NormalizedEmail
 
@@ -46,13 +47,13 @@ class ChangePasswordRequest(BaseModel):
 class PasswordChangeResponse(BaseModel):
     """Response returned after changing or resetting a password."""
 
-    message: str = "تم تغيير كلمة المرور بنجاح"
+    message: str = messages.PASSWORD_CHANGED
 
 
 class LogoutResponse(BaseModel):
     """Response returned after a successful logout."""
 
-    message: str = "تم تسجيل الخروج بنجاح"
+    message: str = messages.LOGGED_OUT
 
 
 class TokenPayload(BaseModel):

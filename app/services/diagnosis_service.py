@@ -6,6 +6,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core import messages
 from app.models.diagnosis_result import DiagnosisResult
 from app.models.patient import Patient
 from app.models.xray_image import XrayImage
@@ -91,32 +92,26 @@ def validate_diagnosis_request(
     (fake/...) are rejected because they never passed the upload validation gate.
     """
     if get_patient_by_id(db, patient_id, doctor_id) is None:
-        raise InvalidDiagnosisRequestError("Patient not found")
+        raise InvalidDiagnosisRequestError(messages.PATIENT_NOT_FOUND)
 
     xray_image = get_xray_image_by_id(db, xray_image_id, doctor_id)
     if xray_image is None:
-        raise InvalidDiagnosisRequestError("X-ray image not found")
+        raise InvalidDiagnosisRequestError(messages.XRAY_NOT_FOUND)
 
     if xray_image.patient_id != patient_id:
-        raise InvalidDiagnosisRequestError(
-            "X-ray image does not belong to the specified patient"
-        )
+        raise InvalidDiagnosisRequestError(messages.XRAY_NOT_OWNED_BY_PATIENT)
 
     # Only images registered through the upload gate are eligible for analysis.
     if not xray_image.image_path or not str(xray_image.image_path).strip():
-        raise InvalidDiagnosisRequestError("X-ray image storage path is missing")
+        raise InvalidDiagnosisRequestError(messages.XRAY_STORAGE_PATH_MISSING)
     if str(xray_image.image_path).startswith("fake/"):
-        raise InvalidDiagnosisRequestError(
-            "X-ray image is not a validated upload eligible for AI analysis"
-        )
+        raise InvalidDiagnosisRequestError(messages.XRAY_NOT_ELIGIBLE_FOR_ANALYSIS)
 
     existing_result = db.scalar(
         select(DiagnosisResult).where(DiagnosisResult.xray_image_id == xray_image_id)
     )
     if existing_result is not None:
-        raise InvalidDiagnosisRequestError(
-            "A diagnosis result already exists for this X-ray image"
-        )
+        raise InvalidDiagnosisRequestError(messages.DIAGNOSIS_ALREADY_EXISTS)
 
     return xray_image
 

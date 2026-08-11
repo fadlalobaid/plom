@@ -14,13 +14,12 @@ from app.ai.xray_validator import (
     ValidatorUnavailableError,
     validate_chest_xray_content,
 )
+from app.core import messages
 from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
-PUBLIC_INVALID_XRAY_DETAIL = (
-    "الصورة المرفوعة ليست صورة أشعة صدر صالحة للتحليل."
-)
+PUBLIC_INVALID_XRAY_DETAIL = messages.INVALID_CHEST_XRAY
 
 ALLOWED_XRAY_EXTENSIONS = {".jpg", ".jpeg", ".png", ".dcm"}
 ALLOWED_XRAY_CONTENT_TYPES = {
@@ -116,7 +115,7 @@ def validate_xray_upload(
         raise XrayValidationError(
             XrayValidationReason.VALIDATOR_UNAVAILABLE,
             str(exc),
-            public_detail="تعذر التحقق من صلاحية صورة الأشعة حالياً. حاول لاحقاً.",
+            public_detail=messages.XRAY_VALIDATION_UNAVAILABLE,
         ) from exc
     except Exception as exc:  # noqa: BLE001
         logger.exception(
@@ -126,7 +125,7 @@ def validate_xray_upload(
         raise XrayValidationError(
             XrayValidationReason.VALIDATOR_INFERENCE_ERROR,
             "Chest X-ray content validator failed",
-            public_detail="تعذر التحقق من صلاحية صورة الأشعة حالياً. حاول لاحقاً.",
+            public_detail=messages.XRAY_VALIDATION_UNAVAILABLE,
         ) from exc
 
     if content_result.status == "rejected" or content_result.is_chest_xray is False:
@@ -206,7 +205,7 @@ def _validate_size(file_bytes: bytes) -> None:
         raise XrayValidationError(
             XrayValidationReason.FILE_TOO_LARGE,
             f"File exceeds the maximum allowed size of {max_bytes} bytes",
-            public_detail=f"حجم الملف يتجاوز الحد الأقصى المسموح ({max_bytes} بايت).",
+            public_detail=messages.xray_file_too_large(max_bytes),
         )
 
 
@@ -245,7 +244,7 @@ def _validate_raster_integrity(file_bytes: bytes, extension: str) -> tuple[int, 
         raise XrayValidationError(
             XrayValidationReason.VALIDATOR_UNAVAILABLE,
             "Pillow is required for image integrity validation",
-            public_detail="تعذر التحقق من صلاحية صورة الأشعة حالياً. حاول لاحقاً.",
+            public_detail=messages.XRAY_VALIDATION_UNAVAILABLE,
         ) from exc
 
     try:

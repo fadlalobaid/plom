@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_admin
+from app.core import messages
 from app.db.session import get_db
 from app.models.doctor import Doctor
 from app.models.enums import AuditAction, AuditEntityType
@@ -51,12 +52,12 @@ def create_doctor_account(
     except EmailAlreadyRegisteredError as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="البريد الإلكتروني موجود بالفعل",
+            detail=messages.EMAIL_ALREADY_EXISTS,
         ) from exc
     except DoctorNationalIdAlreadyRegisteredError as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="رقم الهوية الوطنية موجود بالفعل",
+            detail=messages.NATIONAL_ID_ALREADY_EXISTS,
         ) from exc
 
     create_audit_log(
@@ -94,7 +95,7 @@ def get_doctor_account(
     if doctor is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="الطبيب غير موجود",
+            detail=messages.DOCTOR_NOT_FOUND,
         )
     return doctor
 
@@ -113,12 +114,12 @@ def reset_doctor_account_password(
     except DoctorNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="الطبيب غير موجود",
+            detail=messages.DOCTOR_NOT_FOUND,
         ) from exc
     except InvalidDoctorPasswordResetError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="إعادة تعيين كلمة المرور متاح فقط لحسابات الطبيب",
+            detail=messages.PASSWORD_RESET_DOCTORS_ONLY,
         ) from exc
 
     create_audit_log(
@@ -134,7 +135,7 @@ def reset_doctor_account_password(
         },
         request=request,
     )
-    return PasswordChangeResponse(message="Password reset successfully")
+    return PasswordChangeResponse(message=messages.PASSWORD_RESET)
 
 
 @router.patch("/{doctor_id}", response_model=DoctorResponse)
@@ -156,22 +157,22 @@ def update_doctor_account(
     except DoctorNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="الطبيب غير موجود",
+            detail=messages.DOCTOR_NOT_FOUND,
         ) from exc
     except EmailAlreadyRegisteredError as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="البريد الإلكتروني موجود بالفعل",
+            detail=messages.EMAIL_ALREADY_EXISTS,
         ) from exc
     except DoctorNationalIdAlreadyRegisteredError as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="رقم الهوية الوطنية موجود بالفعل",
+            detail=messages.NATIONAL_ID_ALREADY_EXISTS,
         ) from exc
     except InvalidDoctorPasswordResetError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Password reset is only available for doctor accounts",
+            detail=messages.PASSWORD_RESET_DOCTORS_ONLY,
         ) from exc
 
     updated_fields = sorted(
@@ -213,7 +214,7 @@ def deactivate_doctor_account(
     except DoctorNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="الطبيب غير موجود",
+            detail=messages.DOCTOR_NOT_FOUND,
         ) from exc
 
     create_audit_log(

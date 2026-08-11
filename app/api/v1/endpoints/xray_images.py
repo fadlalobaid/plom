@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Uplo
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_active_doctor, require_password_change_completed
+from app.core import messages
 from app.core.validators import validate_optional_notes
 from app.db.session import get_db
 from app.models.doctor import Doctor
@@ -35,7 +36,6 @@ from app.services.xray_service import (
     upload_and_create_xray_image,
 )
 from app.services.xray_validation_service import (
-    PUBLIC_INVALID_XRAY_DETAIL,
     XrayValidationError,
     XrayValidationReason,
 )
@@ -65,7 +65,7 @@ def upload_xray_image(
     if get_patient_by_id(db, patient_id, current_doctor.id) is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="المريض غير موجود",
+            detail=messages.PATIENT_NOT_FOUND,
         )
 
     try:
@@ -89,12 +89,12 @@ def upload_xray_image(
     except UnsupportedXrayMediaTypeError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=PUBLIC_INVALID_XRAY_DETAIL,
+            detail=messages.INVALID_CHEST_XRAY,
         ) from exc
     except XrayFileTooLargeError as exc:
         raise HTTPException(
             status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-            detail=str(exc),
+            detail=str(exc) or messages.INVALID_CHEST_XRAY,
         ) from exc
     except XrayValidationError as exc:
         if exc.reason == XrayValidationReason.VALIDATOR_UNAVAILABLE:
@@ -109,17 +109,17 @@ def upload_xray_image(
     except InvalidXrayFileError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=str(exc) or PUBLIC_INVALID_XRAY_DETAIL,
+            detail=str(exc) or messages.INVALID_CHEST_XRAY,
         ) from exc
     except XrayStorageError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=str(exc),
+            detail=str(exc) or messages.XRAY_STORAGE_UNAVAILABLE,
         ) from exc
     except PatientNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="المريض غير موجود",
+            detail=messages.PATIENT_NOT_FOUND,
         ) from exc
 
     create_audit_log(
@@ -151,7 +151,7 @@ def get_patient_xray_images(
     if get_patient_by_id(db, patient_id, current_doctor.id) is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="المريض غير موجود",
+            detail=messages.PATIENT_NOT_FOUND,
         )
     return list_xray_images_by_patient(db, patient_id, current_doctor.id)
 
@@ -172,12 +172,12 @@ def get_xray_image_signed_url(
     except XrayImageNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="الصورة الشعاعية الغير موجودة",
+            detail=messages.XRAY_NOT_FOUND,
         ) from exc
     except XrayStorageError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=str(exc),
+            detail=str(exc) or messages.XRAY_STORAGE_UNAVAILABLE,
         ) from exc
 
     return XraySignedUrlResponse(signed_url=signed_url, expires_in=expires_in)
@@ -194,7 +194,7 @@ def get_xray_image_record(
     if xray_image is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="الصورة الشعاعية الغير موجودة",
+            detail=messages.XRAY_NOT_FOUND,
         )
     return xray_image
 
@@ -212,7 +212,7 @@ def update_xray_image_record(
     except XrayImageNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="الصورة الشعاعية الغير موجودة",
+            detail=messages.XRAY_NOT_FOUND,
         ) from exc
 
 
@@ -229,12 +229,12 @@ def delete_xray_image_record(
     except XrayImageNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="الصورة الشعاعية الغير موجودة",
+            detail=messages.XRAY_NOT_FOUND,
         ) from exc
     except XrayStorageError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=str(exc),
+            detail=str(exc) or messages.XRAY_STORAGE_UNAVAILABLE,
         ) from exc
 
     create_audit_log(
