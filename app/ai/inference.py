@@ -31,6 +31,7 @@ from app.ai.exceptions import (
 from app.ai.model_loader import get_model
 from app.ai.preprocessing import preprocess_xray
 from app.ai.threshold_config import get_class_thresholds, get_threshold_config
+from app.core import messages
 
 
 def _as_python_float(value: Any) -> float:
@@ -169,10 +170,8 @@ def predict_xray(
         # Legacy DB column predicted_label is non-null, so use an empty summary.
         predicted_label = ""
         confidence_score = float(max(all_probabilities.values()))
-        report_text = (
-            "AI-assisted analysis / model output: no labels exceeded their "
-            f"configured per-class thresholds. {threshold_config.warning}"
-        )
+        # User-facing Arabic summary only; full multilabel payload follows the marker.
+        report_text = messages.NO_POSITIVE_FINDINGS
 
     multilabel_payload = {
         "predictions": predictions,

@@ -18,7 +18,7 @@ from app.schemas.auth import (
     TokenResponse,
 )
 from app.schemas.doctor import DoctorResponse
-from app.services.audit_service import create_audit_log
+from app.services.audit_service import audit_operation
 from app.services.auth_service import (
     IncorrectCurrentPasswordError,
     InvalidRefreshTokenError,
@@ -49,6 +49,15 @@ def login(
 ) -> TokenResponse:
     doctor = authenticate_doctor(db, payload.email, payload.password)
     if doctor is None:
+        audit_operation(
+            db,
+            action=AuditAction.LOGIN_FAILED,
+            success=False,
+            entity_type=AuditEntityType.DOCTOR,
+            reason="invalid_credentials",
+            email=payload.email,
+            request=request,
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=messages.INVALID_CREDENTIALS,
@@ -56,6 +65,17 @@ def login(
         )
 
     if doctor.status != DoctorStatus.ACTIVE:
+        audit_operation(
+            db,
+            action=AuditAction.LOGIN_FAILED,
+            success=False,
+            user_id=doctor.id,
+            entity_type=AuditEntityType.DOCTOR,
+            entity_id=doctor.id,
+            reason="inactive_account",
+            email=doctor.email,
+            request=request,
+        )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=messages.INACTIVE_ACCOUNT,
@@ -67,13 +87,14 @@ def login(
         user_agent=request.headers.get("user-agent"),
         ip_address=_client_ip(request),
     )
-    create_audit_log(
+    audit_operation(
         db,
         action=AuditAction.LOGIN,
+        success=True,
         user_id=doctor.id,
         entity_type=AuditEntityType.DOCTOR,
         entity_id=doctor.id,
-        details={"result": "success", "email": doctor.email},
+        email=doctor.email,
         request=request,
     )
     return TokenResponse(
@@ -97,6 +118,14 @@ def refresh(
             ip_address=_client_ip(request),
         )
     except InvalidRefreshTokenError as exc:
+        audit_operation(
+            db,
+            action=AuditAction.REFRESH_FAILED,
+            success=False,
+            entity_type=AuditEntityType.DOCTOR,
+            reason="invalid_refresh_token",
+            request=request,
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=messages.INVALID_SESSION,
@@ -135,23 +164,43 @@ def change_password(
             payload.new_password,
         )
     except IncorrectCurrentPasswordError as exc:
+        audit_operation(
+            db,
+            action=AuditAction.CHANGE_PASSWORD,
+            success=False,
+            user_id=current_doctor.id,
+            entity_type=AuditEntityType.DOCTOR,
+            entity_id=current_doctor.id,
+            reason="incorrect_current_password",
+            request=request,
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=messages.CURRENT_PASSWORD_INCORRECT,
         ) from exc
     except PasswordReuseError as exc:
+        audit_operation(
+            db,
+            action=AuditAction.CHANGE_PASSWORD,
+            success=False,
+            user_id=current_doctor.id,
+            entity_type=AuditEntityType.DOCTOR,
+            entity_id=current_doctor.id,
+            reason="password_reuse",
+            request=request,
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=messages.PASSWORD_REUSE_NOT_ALLOWED,
         ) from exc
     revoke_access_token(credentials.credentials)
-    create_audit_log(
+    audit_operation(
         db,
         action=AuditAction.CHANGE_PASSWORD,
+        success=True,
         user_id=current_doctor.id,
         entity_type=AuditEntityType.DOCTOR,
         entity_id=current_doctor.id,
-        details={"result": "success"},
         request=request,
     )
     return PasswordChangeResponse()
@@ -169,13 +218,13 @@ def logout(
     if session_id is not None:
         revoke_auth_session(db, session_id)
     revoke_access_token(credentials.credentials)
-    create_audit_log(
+    audit_operation(
         db,
         action=AuditAction.LOGOUT,
+        success=True,
         user_id=current_doctor.id,
         entity_type=AuditEntityType.DOCTOR,
         entity_id=current_doctor.id,
-        details={"result": "success"},
         request=request,
     )
     return LogoutResponse()

@@ -17,7 +17,7 @@ from app.models.mixins import UUIDPrimaryKeyMixin
 
 
 class AuditLog(UUIDPrimaryKeyMixin, Base):
-    """Immutable record of a successful security-sensitive operation."""
+    """Immutable record of a security-sensitive operation (success or failure)."""
 
     __tablename__ = "audit_logs"
 

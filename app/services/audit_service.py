@@ -67,6 +67,35 @@ def sanitize_audit_details(details: dict[str, Any] | None) -> dict[str, Any] | N
     return sanitized or None
 
 
+def audit_operation(
+    db: Session,
+    *,
+    action: AuditAction,
+    success: bool,
+    request: Request | None = None,
+    user_id: UUID | None = None,
+    entity_type: AuditEntityType | str | None = None,
+    entity_id: UUID | None = None,
+    reason: str | None = None,
+    ip_address: str | None = None,
+    **details: Any,
+) -> AuditLog | None:
+    """Record a security-sensitive operation with a normalized result payload."""
+    payload: dict[str, Any] = {"result": "success" if success else "failure", **details}
+    if reason is not None:
+        payload["reason"] = reason
+    return create_audit_log(
+        db,
+        action=action,
+        user_id=user_id,
+        entity_type=entity_type,
+        entity_id=entity_id,
+        details=payload,
+        ip_address=ip_address,
+        request=request,
+    )
+
+
 def create_audit_log(
     db: Session,
     *,
@@ -78,10 +107,10 @@ def create_audit_log(
     ip_address: str | None = None,
     request: Request | None = None,
 ) -> AuditLog | None:
-    """Persist an audit event after a successful business operation.
+    """Persist an audit event for a business operation.
 
-    Failures are logged and swallowed so the primary API operation is not
-    rolled back when audit persistence fails.
+    Audit write failures are logged and swallowed so the primary API operation
+    is not rolled back when audit persistence fails.
     """
     resolved_entity_type: str | None
     if isinstance(entity_type, AuditEntityType):

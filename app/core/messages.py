@@ -36,6 +36,10 @@ XRAY_NOT_ELIGIBLE_FOR_ANALYSIS = "صورة الأشعة غير صالحة للت
 DIAGNOSIS_ALREADY_EXISTS = "توجد نتيجة تشخيص مسبقاً لهذه الصورة"
 XRAY_UNAVAILABLE_FOR_ANALYSIS = "تعذر الحصول على صورة الأشعة للتحليل"
 DIAGNOSIS_FAILED = "تعذر إكمال التحليل الآلي. حاول لاحقاً"
+NO_POSITIVE_FINDINGS = (
+    "لم تظهر في هذه الصورة مؤشرات واضحة لأي من الأمراض التي يفحصها النظام. "
+    "هذه نتيجة مساعدة فقط ولا تغني عن تقييم الطبيب."
+)
 
 # --- X-ray upload / storage ---
 INVALID_CHEST_XRAY = "الصورة المرفوعة ليست صورة أشعة صدر صالحة للتحليل"

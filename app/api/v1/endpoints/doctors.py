@@ -18,7 +18,7 @@ from app.schemas.doctor import (
     DoctorResponse,
     DoctorUpdate,
 )
-from app.services.audit_service import create_audit_log
+from app.services.audit_service import audit_operation
 from app.services.doctor_service import (
     DoctorNationalIdAlreadyRegisteredError,
     DoctorNotFoundError,
@@ -50,28 +50,46 @@ def create_doctor_account(
     try:
         doctor = create_doctor(db, payload)
     except EmailAlreadyRegisteredError as exc:
+        audit_operation(
+            db,
+            action=AuditAction.CREATE_DOCTOR,
+            success=False,
+            user_id=current_admin.id,
+            entity_type=AuditEntityType.DOCTOR,
+            reason="email_already_exists",
+            email=payload.email,
+            request=request,
+        )
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=messages.EMAIL_ALREADY_EXISTS,
         ) from exc
     except DoctorNationalIdAlreadyRegisteredError as exc:
+        audit_operation(
+            db,
+            action=AuditAction.CREATE_DOCTOR,
+            success=False,
+            user_id=current_admin.id,
+            entity_type=AuditEntityType.DOCTOR,
+            reason="national_id_already_exists",
+            email=payload.email,
+            request=request,
+        )
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=messages.NATIONAL_ID_ALREADY_EXISTS,
         ) from exc
 
-    create_audit_log(
+    audit_operation(
         db,
         action=AuditAction.CREATE_DOCTOR,
+        success=True,
         user_id=current_admin.id,
         entity_type=AuditEntityType.DOCTOR,
         entity_id=doctor.id,
-        details={
-            "result": "success",
-            "email": doctor.email,
-            "role": doctor.role.value,
-            "status": doctor.status.value,
-        },
+        email=doctor.email,
+        role=doctor.role.value,
+        status=doctor.status.value,
         request=request,
     )
     return doctor
@@ -112,27 +130,48 @@ def reset_doctor_account_password(
     try:
         doctor = reset_doctor_password(db, doctor_id, payload)
     except DoctorNotFoundError as exc:
+        audit_operation(
+            db,
+            action=AuditAction.UPDATE_DOCTOR,
+            success=False,
+            user_id=current_admin.id,
+            entity_type=AuditEntityType.DOCTOR,
+            entity_id=doctor_id,
+            reason="doctor_not_found",
+            operation="reset_password",
+            request=request,
+        )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=messages.DOCTOR_NOT_FOUND,
         ) from exc
     except InvalidDoctorPasswordResetError as exc:
+        audit_operation(
+            db,
+            action=AuditAction.UPDATE_DOCTOR,
+            success=False,
+            user_id=current_admin.id,
+            entity_type=AuditEntityType.DOCTOR,
+            entity_id=doctor_id,
+            reason="password_reset_doctors_only",
+            operation="reset_password",
+            request=request,
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=messages.PASSWORD_RESET_DOCTORS_ONLY,
         ) from exc
 
-    create_audit_log(
+    audit_operation(
         db,
         action=AuditAction.UPDATE_DOCTOR,
+        success=True,
         user_id=current_admin.id,
         entity_type=AuditEntityType.DOCTOR,
         entity_id=doctor.id,
-        details={
-            "result": "success",
-            "updated_fields": ["password", "must_change_password"],
-            "must_change_password": True,
-        },
+        operation="reset_password",
+        updated_fields=["password", "must_change_password"],
+        must_change_password=True,
         request=request,
     )
     return PasswordChangeResponse(message=messages.PASSWORD_RESET)
@@ -155,21 +194,61 @@ def update_doctor_account(
     try:
         doctor = update_doctor(db, doctor_id, payload)
     except DoctorNotFoundError as exc:
+        audit_operation(
+            db,
+            action=AuditAction.UPDATE_DOCTOR,
+            success=False,
+            user_id=current_admin.id,
+            entity_type=AuditEntityType.DOCTOR,
+            entity_id=doctor_id,
+            reason="doctor_not_found",
+            request=request,
+        )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=messages.DOCTOR_NOT_FOUND,
         ) from exc
     except EmailAlreadyRegisteredError as exc:
+        audit_operation(
+            db,
+            action=AuditAction.UPDATE_DOCTOR,
+            success=False,
+            user_id=current_admin.id,
+            entity_type=AuditEntityType.DOCTOR,
+            entity_id=doctor_id,
+            reason="email_already_exists",
+            request=request,
+        )
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=messages.EMAIL_ALREADY_EXISTS,
         ) from exc
     except DoctorNationalIdAlreadyRegisteredError as exc:
+        audit_operation(
+            db,
+            action=AuditAction.UPDATE_DOCTOR,
+            success=False,
+            user_id=current_admin.id,
+            entity_type=AuditEntityType.DOCTOR,
+            entity_id=doctor_id,
+            reason="national_id_already_exists",
+            request=request,
+        )
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=messages.NATIONAL_ID_ALREADY_EXISTS,
         ) from exc
     except InvalidDoctorPasswordResetError as exc:
+        audit_operation(
+            db,
+            action=AuditAction.UPDATE_DOCTOR,
+            success=False,
+            user_id=current_admin.id,
+            entity_type=AuditEntityType.DOCTOR,
+            entity_id=doctor_id,
+            reason="password_reset_doctors_only",
+            request=request,
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=messages.PASSWORD_RESET_DOCTORS_ONLY,
@@ -181,22 +260,20 @@ def update_doctor_account(
     if "password" in payload.model_fields_set:
         updated_fields.append("password")
 
-    details: dict[str, object] = {
-        "result": "success",
-        "updated_fields": updated_fields,
-    }
+    success_details: dict[str, object] = {"updated_fields": updated_fields}
     if previous_status is not None and previous_status != doctor.status:
-        details["previous_status"] = previous_status.value
-        details["new_status"] = doctor.status.value
+        success_details["previous_status"] = previous_status.value
+        success_details["new_status"] = doctor.status.value
 
-    create_audit_log(
+    audit_operation(
         db,
         action=AuditAction.UPDATE_DOCTOR,
+        success=True,
         user_id=current_admin.id,
         entity_type=AuditEntityType.DOCTOR,
         entity_id=doctor.id,
-        details=details,
         request=request,
+        **success_details,
     )
     return doctor
 
@@ -212,22 +289,30 @@ def deactivate_doctor_account(
     try:
         doctor = deactivate_doctor(db, doctor_id)
     except DoctorNotFoundError as exc:
+        audit_operation(
+            db,
+            action=AuditAction.DELETE_DOCTOR,
+            success=False,
+            user_id=current_admin.id,
+            entity_type=AuditEntityType.DOCTOR,
+            entity_id=doctor_id,
+            reason="doctor_not_found",
+            request=request,
+        )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=messages.DOCTOR_NOT_FOUND,
         ) from exc
 
-    create_audit_log(
+    audit_operation(
         db,
         action=AuditAction.DELETE_DOCTOR,
+        success=True,
         user_id=current_admin.id,
         entity_type=AuditEntityType.DOCTOR,
         entity_id=doctor.id,
-        details={
-            "result": "success",
-            "soft_delete": True,
-            "status": doctor.status.value,
-        },
+        soft_delete=True,
+        status=doctor.status.value,
         request=request,
     )
     return doctor

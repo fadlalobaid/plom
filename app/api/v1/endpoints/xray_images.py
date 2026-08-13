@@ -20,7 +20,7 @@ from app.schemas.xray_image import (
     XrayImageUpdate,
     XraySignedUrlResponse,
 )
-from app.services.audit_service import create_audit_log
+from app.services.audit_service import audit_operation
 from app.services.patient_service import PatientNotFoundError, get_patient_by_id
 from app.services.xray_service import (
     InvalidXrayFileError,
@@ -63,6 +63,17 @@ def upload_xray_image(
 ) -> XrayImage:
     """Upload a chest X-ray image for a patient to private Supabase Storage."""
     if get_patient_by_id(db, patient_id, current_doctor.id) is None:
+        audit_operation(
+            db,
+            action=AuditAction.UPLOAD_XRAY,
+            success=False,
+            user_id=current_doctor.id,
+            entity_type=AuditEntityType.XRAY_IMAGE,
+            entity_id=None,
+            reason="patient_not_found",
+            patient_id=str(patient_id),
+            request=request,
+        )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=messages.PATIENT_NOT_FOUND,
@@ -71,6 +82,16 @@ def upload_xray_image(
     try:
         cleaned_notes = validate_optional_notes(notes)
     except ValueError as exc:
+        audit_operation(
+            db,
+            action=AuditAction.UPLOAD_XRAY,
+            success=False,
+            user_id=current_doctor.id,
+            entity_type=AuditEntityType.XRAY_IMAGE,
+            reason="invalid_notes",
+            patient_id=str(patient_id),
+            request=request,
+        )
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=str(exc),
@@ -87,16 +108,46 @@ def upload_xray_image(
             taken_at=taken_at,
         )
     except UnsupportedXrayMediaTypeError as exc:
+        audit_operation(
+            db,
+            action=AuditAction.UPLOAD_XRAY,
+            success=False,
+            user_id=current_doctor.id,
+            entity_type=AuditEntityType.XRAY_IMAGE,
+            reason="unsupported_media_type",
+            patient_id=str(patient_id),
+            request=request,
+        )
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=messages.INVALID_CHEST_XRAY,
         ) from exc
     except XrayFileTooLargeError as exc:
+        audit_operation(
+            db,
+            action=AuditAction.UPLOAD_XRAY,
+            success=False,
+            user_id=current_doctor.id,
+            entity_type=AuditEntityType.XRAY_IMAGE,
+            reason="file_too_large",
+            patient_id=str(patient_id),
+            request=request,
+        )
         raise HTTPException(
             status_code=status.HTTP_413_CONTENT_TOO_LARGE,
             detail=str(exc) or messages.INVALID_CHEST_XRAY,
         ) from exc
     except XrayValidationError as exc:
+        audit_operation(
+            db,
+            action=AuditAction.UPLOAD_XRAY,
+            success=False,
+            user_id=current_doctor.id,
+            entity_type=AuditEntityType.XRAY_IMAGE,
+            reason=exc.reason.value,
+            patient_id=str(patient_id),
+            request=request,
+        )
         if exc.reason == XrayValidationReason.VALIDATOR_UNAVAILABLE:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -107,35 +158,63 @@ def upload_xray_image(
             detail=exc.public_detail,
         ) from exc
     except InvalidXrayFileError as exc:
+        audit_operation(
+            db,
+            action=AuditAction.UPLOAD_XRAY,
+            success=False,
+            user_id=current_doctor.id,
+            entity_type=AuditEntityType.XRAY_IMAGE,
+            reason="invalid_xray_file",
+            patient_id=str(patient_id),
+            request=request,
+        )
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=str(exc) or messages.INVALID_CHEST_XRAY,
         ) from exc
     except XrayStorageError as exc:
+        audit_operation(
+            db,
+            action=AuditAction.UPLOAD_XRAY,
+            success=False,
+            user_id=current_doctor.id,
+            entity_type=AuditEntityType.XRAY_IMAGE,
+            reason="storage_error",
+            patient_id=str(patient_id),
+            request=request,
+        )
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=str(exc) or messages.XRAY_STORAGE_UNAVAILABLE,
         ) from exc
     except PatientNotFoundError as exc:
+        audit_operation(
+            db,
+            action=AuditAction.UPLOAD_XRAY,
+            success=False,
+            user_id=current_doctor.id,
+            entity_type=AuditEntityType.XRAY_IMAGE,
+            reason="patient_not_found",
+            patient_id=str(patient_id),
+            request=request,
+        )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=messages.PATIENT_NOT_FOUND,
         ) from exc
 
-    create_audit_log(
+    audit_operation(
         db,
         action=AuditAction.UPLOAD_XRAY,
+        success=True,
         user_id=current_doctor.id,
         entity_type=AuditEntityType.XRAY_IMAGE,
         entity_id=xray_image.id,
-        details={
-            "result": "success",
-            "patient_id": str(patient_id),
-            "xray_image_id": str(xray_image.id),
-            "storage_path": xray_image.image_path,
-            "file_extension": Path(xray_image.image_path).suffix.lower(),
-            "view_type": view_type.value,
-        },
+        patient_id=str(patient_id),
+        xray_image_id=str(xray_image.id),
+        storage_path=xray_image.image_path,
+        file_extension=Path(xray_image.image_path).suffix.lower(),
+        view_type=view_type.value,
         request=request,
     )
     return xray_image
@@ -227,27 +306,45 @@ def delete_xray_image_record(
     try:
         storage_path = delete_xray_image(db, xray_image_id, current_doctor.id)
     except XrayImageNotFoundError as exc:
+        audit_operation(
+            db,
+            action=AuditAction.DELETE_XRAY,
+            success=False,
+            user_id=current_doctor.id,
+            entity_type=AuditEntityType.XRAY_IMAGE,
+            entity_id=xray_image_id,
+            reason="xray_not_found",
+            request=request,
+        )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=messages.XRAY_NOT_FOUND,
         ) from exc
     except XrayStorageError as exc:
+        audit_operation(
+            db,
+            action=AuditAction.DELETE_XRAY,
+            success=False,
+            user_id=current_doctor.id,
+            entity_type=AuditEntityType.XRAY_IMAGE,
+            entity_id=xray_image_id,
+            reason="storage_error",
+            request=request,
+        )
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=str(exc) or messages.XRAY_STORAGE_UNAVAILABLE,
         ) from exc
 
-    create_audit_log(
+    audit_operation(
         db,
         action=AuditAction.DELETE_XRAY,
+        success=True,
         user_id=current_doctor.id,
         entity_type=AuditEntityType.XRAY_IMAGE,
         entity_id=xray_image_id,
-        details={
-            "result": "success",
-            "xray_image_id": str(xray_image_id),
-            "storage_path": storage_path,
-            "file_extension": Path(storage_path).suffix.lower(),
-        },
+        xray_image_id=str(xray_image_id),
+        storage_path=storage_path,
+        file_extension=Path(storage_path).suffix.lower(),
         request=request,
     )

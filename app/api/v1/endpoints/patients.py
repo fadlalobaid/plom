@@ -22,7 +22,7 @@ from app.schemas.patient import (
     PatientXrayHistoryResponse,
 )
 from app.schemas.xray_image import XrayImageResponse
-from app.services.audit_service import create_audit_log
+from app.services.audit_service import audit_operation
 from app.services.patient_service import (
     NationalIdAlreadyRegisteredError,
     PatientNotFoundError,
@@ -52,18 +52,27 @@ def create_patient_record(
     try:
         patient = create_patient(db, payload, created_by_doctor_id=current_doctor.id)
     except NationalIdAlreadyRegisteredError as exc:
+        audit_operation(
+            db,
+            action=AuditAction.CREATE_PATIENT,
+            success=False,
+            user_id=current_doctor.id,
+            entity_type=AuditEntityType.PATIENT,
+            reason="national_id_already_exists",
+            request=request,
+        )
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=messages.NATIONAL_ID_ALREADY_EXISTS,
         ) from exc
 
-    create_audit_log(
+    audit_operation(
         db,
         action=AuditAction.CREATE_PATIENT,
+        success=True,
         user_id=current_doctor.id,
         entity_type=AuditEntityType.PATIENT,
         entity_id=patient.id,
-        details={"result": "success"},
         request=request,
     )
     return patient
@@ -155,26 +164,44 @@ def update_patient_record(
     try:
         patient = update_patient(db, patient_id, payload, current_doctor.id)
     except PatientNotFoundError as exc:
+        audit_operation(
+            db,
+            action=AuditAction.UPDATE_PATIENT,
+            success=False,
+            user_id=current_doctor.id,
+            entity_type=AuditEntityType.PATIENT,
+            entity_id=patient_id,
+            reason="patient_not_found",
+            request=request,
+        )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=messages.PATIENT_NOT_FOUND,
         ) from exc
     except NationalIdAlreadyRegisteredError as exc:
+        audit_operation(
+            db,
+            action=AuditAction.UPDATE_PATIENT,
+            success=False,
+            user_id=current_doctor.id,
+            entity_type=AuditEntityType.PATIENT,
+            entity_id=patient_id,
+            reason="national_id_already_exists",
+            request=request,
+        )
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=messages.NATIONAL_ID_ALREADY_EXISTS,
         ) from exc
 
-    create_audit_log(
+    audit_operation(
         db,
         action=AuditAction.UPDATE_PATIENT,
+        success=True,
         user_id=current_doctor.id,
         entity_type=AuditEntityType.PATIENT,
         entity_id=patient.id,
-        details={
-            "result": "success",
-            "updated_fields": sorted(payload.model_fields_set),
-        },
+        updated_fields=sorted(payload.model_fields_set),
         request=request,
     )
     return patient
@@ -191,17 +218,27 @@ def delete_patient_record(
     try:
         delete_patient(db, patient_id, current_doctor.id)
     except PatientNotFoundError as exc:
+        audit_operation(
+            db,
+            action=AuditAction.DELETE_PATIENT,
+            success=False,
+            user_id=current_doctor.id,
+            entity_type=AuditEntityType.PATIENT,
+            entity_id=patient_id,
+            reason="patient_not_found",
+            request=request,
+        )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=messages.PATIENT_NOT_FOUND,
         ) from exc
 
-    create_audit_log(
+    audit_operation(
         db,
         action=AuditAction.DELETE_PATIENT,
+        success=True,
         user_id=current_doctor.id,
         entity_type=AuditEntityType.PATIENT,
         entity_id=patient_id,
-        details={"result": "success"},
         request=request,
     )

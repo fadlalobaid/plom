@@ -14,7 +14,7 @@ from app.models.doctor import Doctor
 from app.models.enums import AuditAction, AuditEntityType
 from app.schemas.diagnosis_result import DiagnosisAnalysisRequest, DiagnosisResultResponse
 from app.services.ai_service import AIServiceNotReadyError, XrayImageFileNotFoundError
-from app.services.audit_service import create_audit_log
+from app.services.audit_service import audit_operation
 from app.services.diagnosis_service import (
     DiagnosisResultNotFoundError,
     InvalidDiagnosisRequestError,
@@ -50,34 +50,66 @@ def analyze_xray_diagnosis(
             doctor_id=current_doctor.id,
         )
     except InvalidDiagnosisRequestError as exc:
+        audit_operation(
+            db,
+            action=AuditAction.CREATE_DIAGNOSIS,
+            success=False,
+            user_id=current_doctor.id,
+            entity_type=AuditEntityType.DIAGNOSIS_RESULT,
+            reason="invalid_request",
+            patient_id=str(payload.patient_id),
+            xray_image_id=str(payload.xray_image_id),
+            message=exc.message,
+            request=request,
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=exc.message,
         ) from exc
     except XrayImageFileNotFoundError as exc:
+        audit_operation(
+            db,
+            action=AuditAction.CREATE_DIAGNOSIS,
+            success=False,
+            user_id=current_doctor.id,
+            entity_type=AuditEntityType.DIAGNOSIS_RESULT,
+            reason="xray_unavailable",
+            patient_id=str(payload.patient_id),
+            xray_image_id=str(payload.xray_image_id),
+            request=request,
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc) or messages.XRAY_UNAVAILABLE_FOR_ANALYSIS,
         ) from exc
     except AIServiceNotReadyError as exc:
+        audit_operation(
+            db,
+            action=AuditAction.CREATE_DIAGNOSIS,
+            success=False,
+            user_id=current_doctor.id,
+            entity_type=AuditEntityType.DIAGNOSIS_RESULT,
+            reason="ai_service_not_ready",
+            patient_id=str(payload.patient_id),
+            xray_image_id=str(payload.xray_image_id),
+            request=request,
+        )
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=str(exc) or messages.DIAGNOSIS_FAILED,
         ) from exc
 
-    create_audit_log(
+    audit_operation(
         db,
         action=AuditAction.CREATE_DIAGNOSIS,
+        success=True,
         user_id=current_doctor.id,
         entity_type=AuditEntityType.DIAGNOSIS_RESULT,
         entity_id=diagnosis_result.id,
-        details={
-            "result": "success",
-            "patient_id": str(payload.patient_id),
-            "xray_image_id": str(payload.xray_image_id),
-            "predicted_label": diagnosis_result.predicted_label,
-            "model_version": diagnosis_result.model_version,
-        },
+        patient_id=str(payload.patient_id),
+        xray_image_id=str(payload.xray_image_id),
+        predicted_label=diagnosis_result.predicted_label,
+        model_version=diagnosis_result.model_version,
         request=request,
     )
     return diagnosis_result
@@ -132,6 +164,7 @@ def get_diagnosis_result_record(
 @router.delete("/{diagnosis_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_diagnosis_result_record(
     diagnosis_id: UUID,
+    request: Request,
     db: Annotated[Session, Depends(get_db)],
     current_doctor: Annotated[Doctor, Depends(get_current_active_doctor)],
 ) -> None:
@@ -139,7 +172,27 @@ def delete_diagnosis_result_record(
     try:
         delete_diagnosis_result(db, diagnosis_id, current_doctor.id)
     except DiagnosisResultNotFoundError as exc:
+        audit_operation(
+            db,
+            action=AuditAction.DELETE_DIAGNOSIS,
+            success=False,
+            user_id=current_doctor.id,
+            entity_type=AuditEntityType.DIAGNOSIS_RESULT,
+            entity_id=diagnosis_id,
+            reason="diagnosis_not_found",
+            request=request,
+        )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=messages.DIAGNOSIS_NOT_FOUND,
         ) from exc
+
+    audit_operation(
+        db,
+        action=AuditAction.DELETE_DIAGNOSIS,
+        success=True,
+        user_id=current_doctor.id,
+        entity_type=AuditEntityType.DIAGNOSIS_RESULT,
+        entity_id=diagnosis_id,
+        request=request,
+    )

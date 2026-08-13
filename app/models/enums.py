@@ -37,6 +37,8 @@ class AuditAction(str, enum.Enum):
     """Auditable operations recorded by the system."""
 
     LOGIN = "LOGIN"
+    LOGIN_FAILED = "LOGIN_FAILED"
+    REFRESH_FAILED = "REFRESH_FAILED"
     LOGOUT = "LOGOUT"
     CREATE_DOCTOR = "CREATE_DOCTOR"
     UPDATE_DOCTOR = "UPDATE_DOCTOR"
@@ -47,6 +49,7 @@ class AuditAction(str, enum.Enum):
     UPLOAD_XRAY = "UPLOAD_XRAY"
     DELETE_XRAY = "DELETE_XRAY"
     CREATE_DIAGNOSIS = "CREATE_DIAGNOSIS"
+    DELETE_DIAGNOSIS = "DELETE_DIAGNOSIS"
     CHANGE_PASSWORD = "CHANGE_PASSWORD"
 
 
